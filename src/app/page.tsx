@@ -358,13 +358,18 @@ export default function App() {
                 <div style={S.sectionLabel}>指摘箇所プレビュー</div>
                 <div style={{ position: "relative", background: "#0F172A", borderRadius: 8, height: issue.screenshot_url ? 240 : 160, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
                   {issue.screenshot_url ? (
-                    <img src={issue.screenshot_url} alt="スクリーンショット" style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.85 }} />
+                    <>
+                      <img src={issue.screenshot_url} alt="スクリーンショット" style={{ width: "100%", height: "100%", objectFit: "contain", background: "#0F172A" }} />
+                      <div style={{ position: "absolute", left: `${issue.x}%`, top: `${issue.y}%`, transform: "translate(-50%,-50%)", width: 28, height: 28, borderRadius: "50%", background: "rgba(239,68,68,0.2)", border: "2px solid #EF4444", boxShadow: "0 0 0 4px rgba(239,68,68,0.15)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 9, fontWeight: 800 }}>{issue.id}</div>
+                    </>
                   ) : (
-                    <span style={{ color: "#334155", fontSize: 12 }}>スクリーンショット（拡張機能で取得）</span>
+                    <>
+                      <span style={{ color: "#334155", fontSize: 12 }}>スクリーンショット（拡張機能で取得）</span>
+                      <div style={{ position: "absolute", left: `${issue.x}%`, top: `${issue.y}%`, transform: "translate(-50%,-50%)" }}>
+                        <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#EF4444", border: "3px solid #fff", boxShadow: "0 0 0 3px rgba(239,68,68,0.4)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 10, fontWeight: 800 }}>{issue.id}</div>
+                      </div>
+                    </>
                   )}
-                  <div style={{ position: "absolute", left: `${issue.x}%`, top: `${issue.y}%`, transform: "translate(-50%,-50%)" }}>
-                    <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#EF4444", border: "3px solid #fff", boxShadow: "0 0 0 3px rgba(239,68,68,0.4)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 10, fontWeight: 800 }}>{issue.id}</div>
-                  </div>
                 </div>
               </div>
               <div style={{ marginBottom: 20 }}>
@@ -414,9 +419,10 @@ export default function App() {
               </div>
               <div style={{ marginBottom: 20 }}>
                 <div style={S.sectionLabel}>担当者</div>
-                <select style={{ ...S.formInput, marginBottom: 0 }} value={issue.assignee}
+                <select style={{ ...S.formInput, marginBottom: 0 }} value={issue.assignee || ""}
                   onChange={e => updateAssignee(issue.id, e.target.value)}>
-                  {memberNames.map(n => <option key={n}>{n}</option>)}
+                  <option value="">未割当</option>
+                  {memberNames.map(n => <option key={n} value={n}>{n}</option>)}
                 </select>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 24 }}>
@@ -556,7 +562,7 @@ export default function App() {
     <div style={S.app}>
       <header style={S.header}>
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-          <div style={{ ...S.logo, cursor: "pointer" }} onClick={() => { setView("list"); setSelected(null); }}><div style={S.logoMark}>✓</div>SiteCheck</div>
+          <div style={{ ...S.logo, cursor: "pointer" }} onClick={() => { setView("list"); setSelected(null); fetchMembers(); fetchIssues(); }}><div style={S.logoMark}>✓</div>SiteCheck</div>
           <nav style={S.nav}>
             <button style={S.navBtn(view === "list" || view === "detail")} onClick={() => setView("list")}>修正依頼</button>
             <button style={S.navBtn(view === "members")} onClick={() => setView("members")}>メンバー管理</button>
