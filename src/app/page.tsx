@@ -196,7 +196,7 @@ export default function App() {
   };
 
   const addIssue = async () => {
-    if (!newForm.title || !newForm.url) return;
+    if (!newForm.title) return;
     const today = new Date().toISOString().slice(0, 10);
     const row = {
       url: newForm.url, title: newForm.title, detail: newForm.detail,
@@ -345,10 +345,12 @@ export default function App() {
             </div>
             <div style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.4 }}>{issue.title}</div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 12, color: "#64748B" }}>{issue.url} · {issue.page}</span>
-              <Tooltip text="ブラウザ拡張がある場合、該当箇所をハイライト表示します">
-                <a href={locationLink} target="_blank" rel="noopener noreferrer" style={S.linkBtn}>📍 該当箇所を開く</a>
-              </Tooltip>
+              <span style={{ fontSize: 12, color: "#64748B" }}>{[issue.url, issue.page].filter(Boolean).join(" · ") || "URL未設定"}</span>
+              {issue.url && (
+                <Tooltip text="ブラウザ拡張がある場合、該当箇所をハイライト表示します">
+                  <a href={locationLink} target="_blank" rel="noopener noreferrer" style={S.linkBtn}>📍 該当箇所を開く</a>
+                </Tooltip>
+              )}
             </div>
           </div>
 
@@ -512,11 +514,11 @@ export default function App() {
       <div style={S.card}>
         <table style={S.table}>
           <thead>
-            <tr>{["#", "優先度", "タイトル", "ページ", "ステータス", "担当者", "更新日", ""].map(h => <th key={h} style={S.th}>{h}</th>)}</tr>
+            <tr>{["#", "優先度", "タイトル", "ページ", "ステータス", "担当者", "起票者", "更新日", ""].map(h => <th key={h} style={S.th}>{h}</th>)}</tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
-              <tr><td colSpan={8} style={{ ...S.td, textAlign: "center", color: "#94A3B8", padding: 40 }}>条件に一致する修正依頼がありません</td></tr>
+              <tr><td colSpan={9} style={{ ...S.td, textAlign: "center", color: "#94A3B8", padding: 40 }}>条件に一致する修正依頼がありません</td></tr>
             ) : filtered.map(issue => {
               const isDone = issue.status === "完了" || issue.status === "対応なし";
               return (
@@ -532,7 +534,8 @@ export default function App() {
                   </td>
                   <td style={{ ...S.td, fontSize: 12, color: "#64748B" }} onClick={() => { setSelected(issue); setView("detail"); }}>{issue.page}</td>
                   <td style={S.td} onClick={() => { setSelected(issue); setView("detail"); }}><Badge label={issue.status} type="status" /></td>
-                  <td style={{ ...S.td, fontSize: 12 }} onClick={() => { setSelected(issue); setView("detail"); }}>{issue.assignee}</td>
+                  <td style={{ ...S.td, fontSize: 12 }} onClick={() => { setSelected(issue); setView("detail"); }}>{issue.assignee || ""}</td>
+                  <td style={{ ...S.td, fontSize: 12, color: "#64748B" }} onClick={() => { setSelected(issue); setView("detail"); }}>{issue.reporter || ""}</td>
                   <td style={{ ...S.td, fontSize: 12, color: "#94A3B8" }} onClick={() => { setSelected(issue); setView("detail"); }}>{issue.updated_at}</td>
                   <td style={S.td}>
                     <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
@@ -610,7 +613,7 @@ export default function App() {
             <label style={S.formLabel}>タイトル *</label>
             <input style={S.formInput} placeholder="例：ヘッダーのフォントサイズが仕様と異なる"
               value={newForm.title} onChange={e => setNewForm(f => ({ ...f, title: e.target.value }))} />
-            <label style={S.formLabel}>対象URL *</label>
+            <label style={S.formLabel}>対象URL</label>
             <input style={S.formInput} placeholder="https://test.example.com/about"
               value={newForm.url} onChange={e => setNewForm(f => ({ ...f, url: e.target.value }))} />
             <label style={S.formLabel}>ページ名</label>
