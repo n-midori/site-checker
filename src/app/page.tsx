@@ -11,6 +11,7 @@ type Issue = {
   priority: string; status: string; assignee: string;
   reporter: string; page: string; x: number; y: number;
   created_at: string; updated_at: string;
+  screenshot_url?: string;
   comments: Comment[];
 };
 
@@ -73,7 +74,7 @@ function buildLocationLink(issue: Issue) {
   const params = new URLSearchParams({
     sc_id: String(issue.id), sc_x: String(issue.x), sc_y: String(issue.y), sc_title: issue.title,
   });
-  return `${issue.url}#${params.toString()}`;
+  return `${issue.url}?${params.toString()}`;
 }
 
 // ── メインアプリ ─────────────────────────────────────────────
@@ -355,8 +356,12 @@ export default function App() {
             <div style={{ padding: 24, borderRight: "1px solid #F1F5F9" }}>
               <div style={{ marginBottom: 24 }}>
                 <div style={S.sectionLabel}>指摘箇所プレビュー</div>
-                <div style={{ position: "relative", background: "#0F172A", borderRadius: 8, height: 160, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <span style={{ color: "#334155", fontSize: 12 }}>スクリーンショット（拡張機能取得後に表示）</span>
+                <div style={{ position: "relative", background: "#0F172A", borderRadius: 8, height: issue.screenshot_url ? 240 : 160, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+                  {issue.screenshot_url ? (
+                    <img src={issue.screenshot_url} alt="スクリーンショット" style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.85 }} />
+                  ) : (
+                    <span style={{ color: "#334155", fontSize: 12 }}>スクリーンショット（拡張機能で取得）</span>
+                  )}
                   <div style={{ position: "absolute", left: `${issue.x}%`, top: `${issue.y}%`, transform: "translate(-50%,-50%)" }}>
                     <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#EF4444", border: "3px solid #fff", boxShadow: "0 0 0 3px rgba(239,68,68,0.4)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 10, fontWeight: 800 }}>{issue.id}</div>
                   </div>
@@ -569,9 +574,9 @@ export default function App() {
       </header>
 
       <div style={S.main}>
-        {view === "list" && <ListView />}
-        {view === "detail" && <DetailView />}
-        {view === "members" && <MembersView />}
+        {view === "list" && ListView()}
+        {view === "detail" && DetailView()}
+        {view === "members" && MembersView()}
       </div>
 
       {showDelete && (
