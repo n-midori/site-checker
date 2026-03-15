@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 // ── 型定義 ────────────────────────────────────────────────────
 type Member = { id: number; name: string; role: string };
 type Comment = { id?: number; issue_id?: number; author: string; text: string; date: string };
+type Status = { id: number; name: string; color: string; order: number };
 type Issue = {
   id: number; url: string; title: string; detail: string;
   priority: string; status: string; assignee: string;
@@ -17,15 +18,6 @@ type Issue = {
 
 // ── 定数 ────────────────────────────────────────────────────
 const PRIORITIES = ["高", "中", "低"];
-const STATUSES = ["未対応", "対応中", "確認待ち", "対応なし", "完了"];
-
-const STATUS_COLOR: Record<string, { bg: string; text: string; border: string }> = {
-  "未対応":  { bg: "#FEF2F2", text: "#DC2626", border: "#FECACA" },
-  "対応中":  { bg: "#FFF7ED", text: "#D97706", border: "#FED7AA" },
-  "確認待ち":{ bg: "#EFF6FF", text: "#2563EB", border: "#BFDBFE" },
-  "対応なし":{ bg: "#F5F3FF", text: "#7C3AED", border: "#DDD6FE" },
-  "完了":    { bg: "#F0FDF4", text: "#16A34A", border: "#BBF7D0" },
-};
 const PRIORITY_COLOR: Record<string, { bg: string; text: string }> = {
   "高": { bg: "#FEF2F2", text: "#DC2626" },
   "中": { bg: "#FFFBEB", text: "#D97706" },
@@ -33,20 +25,44 @@ const PRIORITY_COLOR: Record<string, { bg: string; text: string }> = {
 };
 const PRIORITY_ORDER: Record<string, number> = { "高": 0, "中": 1, "低": 2 };
 
+// ── 色ヘルパー ──────────────────────────────────────────────
+function hexToRgb(hex: string) {
+  const h = hex.replace("#", "");
+  return { r: parseInt(h.substring(0, 2), 16), g: parseInt(h.substring(2, 4), 16), b: parseInt(h.substring(4, 6), 16) };
+}
+function statusColors(color: string) {
+  const { r, g, b } = hexToRgb(color || "#64748B");
+  return {
+    text: color || "#64748B",
+    bg: `rgba(${r},${g},${b},0.08)`,
+    border: `rgba(${r},${g},${b},0.25)`,
+  };
+}
+
 // ── 小コンポーネント ─────────────────────────────────────────
-const Badge = ({ label, type }: { label: string; type: "status" | "priority" }) => {
-  const c = type === "status" ? STATUS_COLOR[label] : PRIORITY_COLOR[label];
+function StatusBadge({ label, statuses }: { label: string; statuses: Status[] }) {
+  const st = statuses.find(s => s.name === label);
+  const c = st ? statusColors(st.color) : { bg: "#F8FAFC", text: "#64748B", border: "#E2E8F0" };
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 4,
+      padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600,
+      background: c.bg, color: c.text, border: `1px solid ${c.border}`,
+      letterSpacing: "0.02em", whiteSpace: "nowrap",
+    }}>{label}</span>
+  );
+}
+
+const PriorityBadge = ({ label }: { label: string }) => {
+  const c = PRIORITY_COLOR[label];
   if (!c) return null;
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", gap: 4,
       padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600,
-      background: c.bg, color: c.text,
-      border: type === "status" ? `1px solid ${(c as any).border}` : "none",
-      letterSpacing: "0.02em", whiteSpace: "nowrap",
+      background: c.bg, color: c.text, letterSpacing: "0.02em", whiteSpace: "nowrap",
     }}>
-      {type === "priority" && <span style={{ fontSize: 8 }}>●</span>}
-      {label}
+      <span style={{ fontSize: 8 }}>●</span>{label}
     </span>
   );
 };
@@ -81,10 +97,11 @@ function buildLocationLink(issue: Issue) {
 export default function App() {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
+  const [statuses, setStatuses] = useState<Status[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [currentUser, setCurrentUser] = useState("");
-  const [view, setView] = useState<"list" | "detail" | "members">("list");
+  const [view, setView] = useState<"list" | "detail" | "members" | "statuses">("list");
   const [selected, setSelected] = useState<Issue | null>(null);
   const [newComment, setNewComment] = useState("");
 
@@ -100,6 +117,11 @@ export default function App() {
   const [showDelete, setShowDelete] = useState<number | null>(null);
   const [showMemberForm, setShowMemberForm] = useState(false);
   const [editMember, setEditMember] = useState<Member | null>(null);
+
+  // ステータス管理用
+  const [showStatusForm, setShowStatusForm] = useState(false);
+  const [editStatus, setEditStatus] = useState<Status | null>(null);
+  const [statusForm, setStatusForm] = useState({ name: "", color: "#64748B" });
 
   const [newForm, setNewForm] = useState({
     url: "", title: "", detail: "", priority: "中", assignee: "", page: "", reporter: "",
@@ -118,26 +140,31 @@ export default function App() {
   const fetchIssues = useCallback(async () => {
     const { data: issuesData } = await supabase.from("issues").select("*").order("id");
     if (!issuesData) return;
-
     const { data: commentsData } = await supabase.from("comments").select("*").order("id");
     const commentsByIssue: Record<number, Comment[]> = {};
     (commentsData || []).forEach((c: any) => {
       if (!commentsByIssue[c.issue_id]) commentsByIssue[c.issue_id] = [];
       commentsByIssue[c.issue_id].push(c);
     });
+    setIssues(issuesData.map((issue: any) => ({ ...issue, comments: commentsByIssue[issue.id] || [] })));
+  }, []);
 
-    const issuesWithComments = issuesData.map((issue: any) => ({
-      ...issue,
-      comments: commentsByIssue[issue.id] || [],
-    }));
-    setIssues(issuesWithComments);
+  const fetchStatuses = useCallback(async () => {
+    const { data } = await supabase.from("statuses").select("*").order("order");
+    if (data) setStatuses(data);
   }, []);
 
   useEffect(() => {
-    Promise.all([fetchMembers(), fetchIssues()]).then(() => setLoading(false));
-  }, [fetchMembers, fetchIssues]);
+    Promise.all([fetchMembers(), fetchIssues(), fetchStatuses()]).then(() => setLoading(false));
+  }, [fetchMembers, fetchIssues, fetchStatuses]);
 
-  // ── フィルター ──────────────────────────────────────────────
+  // ── 派生データ ──────────────────────────────────────────────
+  const statusNames = useMemo(() => statuses.map(s => s.name), [statuses]);
+  const doneStatusNames = useMemo(() => {
+    // "完了" と "対応なし" に相当するもの（order が最後の2つ、または名前で判定）
+    return statuses.filter(s => s.name === "完了" || s.name === "対応なし").map(s => s.name);
+  }, [statuses]);
+
   const resetFilters = () => {
     setFilterStatus("すべて"); setFilterPriority("すべて");
     setFilterAssignee("すべて"); setFilterUrl("すべて");
@@ -147,11 +174,11 @@ export default function App() {
     filterAssignee !== "すべて" || filterUrl !== "すべて" || filterMine || searchText !== "";
 
   const memberNames = useMemo(() => members.map(m => m.name), [members]);
-  const uniqueUrls = useMemo(() => [...new Set(issues.map(i => i.url))], [issues]);
+  const uniqueUrls = useMemo(() => [...new Set(issues.map(i => i.url).filter(Boolean))], [issues]);
 
   const filtered = useMemo(() => {
     let list = [...issues];
-    if (filterStatus === "__open__") list = list.filter(i => i.status !== "完了" && i.status !== "対応なし");
+    if (filterStatus === "__open__") list = list.filter(i => !doneStatusNames.includes(i.status));
     else if (filterStatus !== "すべて") list = list.filter(i => i.status === filterStatus);
     if (filterPriority !== "すべて") list = list.filter(i => i.priority === filterPriority);
     if (filterAssignee !== "すべて") list = list.filter(i => i.assignee === filterAssignee);
@@ -160,14 +187,14 @@ export default function App() {
     if (searchText) list = list.filter(i => i.title.includes(searchText) || i.detail.includes(searchText));
     if (sortPriority) list.sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]);
     return list;
-  }, [issues, filterStatus, filterPriority, filterAssignee, filterUrl, filterMine, sortPriority, searchText, currentUser]);
+  }, [issues, filterStatus, filterPriority, filterAssignee, filterUrl, filterMine, sortPriority, searchText, currentUser, doneStatusNames]);
 
   const stats = useMemo(() => ({
     total: issues.length,
-    open: issues.filter(i => i.status !== "完了" && i.status !== "対応なし").length,
+    open: issues.filter(i => !doneStatusNames.includes(i.status)).length,
     done: issues.filter(i => i.status === "完了").length,
-    high: issues.filter(i => i.priority === "高" && i.status !== "完了" && i.status !== "対応なし").length,
-  }), [issues]);
+    high: issues.filter(i => i.priority === "高" && !doneStatusNames.includes(i.status)).length,
+  }), [issues, doneStatusNames]);
 
   // ── Supabase アクション ──────────────────────────────────
   const updateStatus = async (id: number, status: string) => {
@@ -200,7 +227,7 @@ export default function App() {
     const today = new Date().toISOString().slice(0, 10);
     const row = {
       url: newForm.url, title: newForm.title, detail: newForm.detail,
-      priority: newForm.priority, status: "未対応",
+      priority: newForm.priority, status: statusNames[0] || "未対応",
       assignee: newForm.assignee || memberNames[0] || "",
       reporter: newForm.reporter || currentUser,
       page: newForm.page || "", x: 50, y: 50,
@@ -237,6 +264,40 @@ export default function App() {
     setMembers(prev => prev.filter(m => m.id !== id));
   };
 
+  // ── ステータス CRUD ──────────────────────────────────────
+  const saveStatus = async () => {
+    if (!statusForm.name.trim()) return;
+    if (editStatus) {
+      await supabase.from("statuses").update({ name: statusForm.name, color: statusForm.color }).eq("id", editStatus.id);
+      setStatuses(prev => prev.map(s => s.id === editStatus.id ? { ...s, ...statusForm } : s));
+    } else {
+      const newOrder = statuses.length > 0 ? Math.max(...statuses.map(s => s.order)) + 1 : 0;
+      const { data } = await supabase.from("statuses").insert({ name: statusForm.name, color: statusForm.color, order: newOrder }).select().single();
+      if (data) setStatuses(prev => [...prev, data]);
+    }
+    setShowStatusForm(false); setEditStatus(null); setStatusForm({ name: "", color: "#64748B" });
+  };
+
+  const deleteStatus = async (id: number) => {
+    await supabase.from("statuses").delete().eq("id", id);
+    setStatuses(prev => prev.filter(s => s.id !== id));
+  };
+
+  const moveStatus = async (id: number, direction: -1 | 1) => {
+    const idx = statuses.findIndex(s => s.id === id);
+    if (idx < 0) return;
+    const swapIdx = idx + direction;
+    if (swapIdx < 0 || swapIdx >= statuses.length) return;
+    const updated = [...statuses];
+    [updated[idx], updated[swapIdx]] = [updated[swapIdx], updated[idx]];
+    // order を振り直し
+    const promises = updated.map((s, i) =>
+      supabase.from("statuses").update({ order: i }).eq("id", s.id)
+    );
+    await Promise.all(promises);
+    setStatuses(updated.map((s, i) => ({ ...s, order: i })));
+  };
+
   // ── スタイル ─────────────────────────────────────────────────
   const S = {
     app: { fontFamily: "'IBM Plex Sans JP','Noto Sans JP',sans-serif", background: "#F1F5F9", minHeight: "100vh", color: "#1E293B" },
@@ -271,7 +332,6 @@ export default function App() {
     linkBtn: { display: "inline-flex", alignItems: "center", gap: 4, color: "#2563EB", fontSize: 12, textDecoration: "none", background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 5, padding: "4px 10px", fontWeight: 600, cursor: "pointer" },
   };
 
-  // ── ローディング ──────────────────────────────────────────────
   if (loading) {
     return (
       <div style={{ ...S.app, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -281,6 +341,51 @@ export default function App() {
       </div>
     );
   }
+
+  // ── ステータス管理画面 ─────────────────────────────────────
+  const StatusesView = () => (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>ステータス管理</h2>
+        <button style={S.addBtn} onClick={() => { setEditStatus(null); setStatusForm({ name: "", color: "#64748B" }); setShowStatusForm(true); }}>
+          ＋ ステータスを追加
+        </button>
+      </div>
+      <div style={S.card}>
+        <table style={S.table}>
+          <thead>
+            <tr>{["並び順", "ステータス名", "色", "プレビュー", "操作"].map(h => <th key={h} style={S.th}>{h}</th>)}</tr>
+          </thead>
+          <tbody>
+            {statuses.map((st, idx) => (
+              <tr key={st.id}>
+                <td style={S.td}>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    <button style={S.iconBtn()} disabled={idx === 0} onClick={() => moveStatus(st.id, -1)}>▲</button>
+                    <button style={S.iconBtn()} disabled={idx === statuses.length - 1} onClick={() => moveStatus(st.id, 1)}>▼</button>
+                  </div>
+                </td>
+                <td style={{ ...S.td, fontWeight: 600 }}>{st.name}</td>
+                <td style={S.td}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 16, height: 16, borderRadius: 3, background: st.color, border: "1px solid #E2E8F0" }} />
+                    <span style={{ fontSize: 12, color: "#64748B", fontFamily: "monospace" }}>{st.color}</span>
+                  </div>
+                </td>
+                <td style={S.td}><StatusBadge label={st.name} statuses={statuses} /></td>
+                <td style={S.td}>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    <button style={S.iconBtn("#2563EB")} title="編集" onClick={() => { setEditStatus(st); setStatusForm({ name: st.name, color: st.color }); setShowStatusForm(true); }}>✏️</button>
+                    <button style={S.iconBtn("#DC2626")} title="削除" onClick={() => deleteStatus(st.id)}>🗑</button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 
   // ── メンバー管理画面 ─────────────────────────────────────────
   const MembersView = () => (
@@ -298,7 +403,7 @@ export default function App() {
           </thead>
           <tbody>
             {members.map(m => {
-              const count = issues.filter(i => i.assignee === m.name && i.status !== "完了" && i.status !== "対応なし").length;
+              const count = issues.filter(i => i.assignee === m.name && !doneStatusNames.includes(i.status)).length;
               return (
                 <tr key={m.id}>
                   <td style={S.td}>
@@ -339,8 +444,8 @@ export default function App() {
         <div style={S.card}>
           <div style={{ background: "#0F172A", color: "#fff", padding: "18px 24px" }}>
             <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-              <Badge label={issue.priority} type="priority" />
-              <Badge label={issue.status} type="status" />
+              <PriorityBadge label={issue.priority} />
+              <StatusBadge label={issue.status} statuses={statuses} />
               <span style={{ fontSize: 11, color: "#64748B", alignSelf: "center" }}>#{issue.id}</span>
             </div>
             <div style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.4 }}>{issue.title}</div>
@@ -406,17 +511,21 @@ export default function App() {
               <div style={{ marginBottom: 20 }}>
                 <div style={S.sectionLabel}>ステータス</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  {STATUSES.map(s => (
-                    <button key={s} onClick={() => updateStatus(issue.id, s)} style={{
-                      border: `1px solid ${issue.status === s ? STATUS_COLOR[s].border : "#E2E8F0"}`,
-                      borderRadius: 6, padding: "8px 12px", textAlign: "left",
-                      background: issue.status === s ? STATUS_COLOR[s].bg : "#fff",
-                      color: issue.status === s ? STATUS_COLOR[s].text : "#374151",
-                      fontSize: 13, fontWeight: issue.status === s ? 700 : 400, cursor: "pointer",
-                    }}>
-                      {issue.status === s ? "✓ " : ""}{s}
-                    </button>
-                  ))}
+                  {statuses.map(st => {
+                    const c = statusColors(st.color);
+                    const active = issue.status === st.name;
+                    return (
+                      <button key={st.id} onClick={() => updateStatus(issue.id, st.name)} style={{
+                        border: `1px solid ${active ? c.border : "#E2E8F0"}`,
+                        borderRadius: 6, padding: "8px 12px", textAlign: "left",
+                        background: active ? c.bg : "#fff",
+                        color: active ? c.text : "#374151",
+                        fontSize: 13, fontWeight: active ? 700 : 400, cursor: "pointer",
+                      }}>
+                        {active ? "✓ " : ""}{st.name}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
               <div style={{ marginBottom: 20 }}>
@@ -486,7 +595,7 @@ export default function App() {
           onChange={e => setFilterStatus(e.target.value)}>
           <option value="すべて">すべて</option>
           <option value="__open__">未完了（全ステータス）</option>
-          {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+          {statusNames.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
         <select style={S.select} value={filterPriority} onChange={e => setFilterPriority(e.target.value)}>
           <option>すべて</option>{PRIORITIES.map(p => <option key={p}>{p}</option>)}
@@ -520,29 +629,31 @@ export default function App() {
             {filtered.length === 0 ? (
               <tr><td colSpan={9} style={{ ...S.td, textAlign: "center", color: "#94A3B8", padding: 40 }}>条件に一致する修正依頼がありません</td></tr>
             ) : filtered.map(issue => {
-              const isDone = issue.status === "完了" || issue.status === "対応なし";
+              const isDone = doneStatusNames.includes(issue.status);
               return (
                 <tr key={issue.id} style={{ cursor: "pointer", opacity: isDone ? 0.5 : 1 }}
                   onMouseEnter={e => (e.currentTarget.style.background = "#F8FAFC")}
                   onMouseLeave={e => (e.currentTarget.style.background = "")}
                 >
                   <td style={{ ...S.td, color: "#94A3B8", fontWeight: 700, fontSize: 12 }} onClick={() => { setSelected(issue); setView("detail"); }}>#{issue.id}</td>
-                  <td style={S.td} onClick={() => { setSelected(issue); setView("detail"); }}><Badge label={issue.priority} type="priority" /></td>
+                  <td style={S.td} onClick={() => { setSelected(issue); setView("detail"); }}><PriorityBadge label={issue.priority} /></td>
                   <td style={S.td} onClick={() => { setSelected(issue); setView("detail"); }}>
                     <div style={{ fontWeight: 600, marginBottom: 2 }}>{issue.title}</div>
-                    <div style={{ fontSize: 11, color: "#94A3B8", fontFamily: "monospace" }}>{issue.url.replace("https://", "")}</div>
+                    {issue.url && <div style={{ fontSize: 11, color: "#94A3B8", fontFamily: "monospace" }}>{issue.url.replace("https://", "")}</div>}
                   </td>
                   <td style={{ ...S.td, fontSize: 12, color: "#64748B" }} onClick={() => { setSelected(issue); setView("detail"); }}>{issue.page}</td>
-                  <td style={S.td} onClick={() => { setSelected(issue); setView("detail"); }}><Badge label={issue.status} type="status" /></td>
+                  <td style={S.td} onClick={() => { setSelected(issue); setView("detail"); }}><StatusBadge label={issue.status} statuses={statuses} /></td>
                   <td style={{ ...S.td, fontSize: 12 }} onClick={() => { setSelected(issue); setView("detail"); }}>{issue.assignee || ""}</td>
                   <td style={{ ...S.td, fontSize: 12, color: "#64748B" }} onClick={() => { setSelected(issue); setView("detail"); }}>{issue.reporter || ""}</td>
                   <td style={{ ...S.td, fontSize: 12, color: "#94A3B8" }} onClick={() => { setSelected(issue); setView("detail"); }}>{issue.updated_at}</td>
                   <td style={S.td}>
                     <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                      <Tooltip text="該当箇所を開く（拡張機能連携）">
-                        <a href={buildLocationLink(issue)} target="_blank" rel="noopener noreferrer"
-                          style={{ ...S.linkBtn, padding: "3px 8px", fontSize: 11 }} onClick={e => e.stopPropagation()}>📍</a>
-                      </Tooltip>
+                      {issue.url && (
+                        <Tooltip text="該当箇所を開く（拡張機能連携）">
+                          <a href={buildLocationLink(issue)} target="_blank" rel="noopener noreferrer"
+                            style={{ ...S.linkBtn, padding: "3px 8px", fontSize: 11 }} onClick={e => e.stopPropagation()}>📍</a>
+                        </Tooltip>
+                      )}
                       <span style={{ color: "#DC2626", fontSize: 11, fontWeight: 600, cursor: "pointer", textDecoration: "none" }}
                         onClick={e => { e.stopPropagation(); setShowDelete(issue.id); }}
                         onMouseEnter={e => (e.currentTarget.style.textDecoration = "underline")}
@@ -565,10 +676,11 @@ export default function App() {
     <div style={S.app}>
       <header style={S.header}>
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-          <div style={{ ...S.logo, cursor: "pointer" }} onClick={() => { setView("list"); setSelected(null); fetchMembers(); fetchIssues(); }}><div style={S.logoMark}>✓</div>SiteCheck</div>
+          <div style={{ ...S.logo, cursor: "pointer" }} onClick={() => { setView("list"); setSelected(null); fetchMembers(); fetchIssues(); fetchStatuses(); }}><div style={S.logoMark}>✓</div>SiteCheck</div>
           <nav style={S.nav}>
             <button style={S.navBtn(view === "list" || view === "detail")} onClick={() => setView("list")}>修正依頼</button>
             <button style={S.navBtn(view === "members")} onClick={() => setView("members")}>メンバー管理</button>
+            <button style={S.navBtn(view === "statuses")} onClick={() => setView("statuses")}>ステータス管理</button>
           </nav>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -589,6 +701,7 @@ export default function App() {
         {view === "list" && ListView()}
         {view === "detail" && DetailView()}
         {view === "members" && MembersView()}
+        {view === "statuses" && StatusesView()}
       </div>
 
       {showDelete && (
@@ -660,6 +773,29 @@ export default function App() {
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 8 }}>
               <button onClick={() => { setShowMemberForm(false); setEditMember(null); }} style={{ border: "1px solid #E2E8F0", borderRadius: 6, padding: "8px 18px", background: "#fff", fontSize: 13, cursor: "pointer" }}>キャンセル</button>
               <button onClick={saveMember} style={S.addBtn}>{editMember ? "保存する" : "追加する"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showStatusForm && (
+        <div style={S.modal} onClick={e => e.target === e.currentTarget && setShowStatusForm(false)}>
+          <div style={{ ...S.modalBox, width: 400 }}>
+            <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 20 }}>{editStatus ? "ステータスを編集" : "ステータスを追加"}</div>
+            <label style={S.formLabel}>ステータス名 *</label>
+            <input style={S.formInput} placeholder="例：レビュー中"
+              value={statusForm.name} onChange={e => setStatusForm(f => ({ ...f, name: e.target.value }))} />
+            <label style={S.formLabel}>色</label>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+              <input type="color" value={statusForm.color} onChange={e => setStatusForm(f => ({ ...f, color: e.target.value }))}
+                style={{ width: 40, height: 34, border: "1px solid #E2E8F0", borderRadius: 6, padding: 2, cursor: "pointer" }} />
+              <input style={{ ...S.formInput, marginBottom: 0, flex: 1 }} value={statusForm.color}
+                onChange={e => setStatusForm(f => ({ ...f, color: e.target.value }))} placeholder="#DC2626" />
+              <StatusBadge label={statusForm.name || "プレビュー"} statuses={[{ id: 0, name: statusForm.name || "プレビュー", color: statusForm.color, order: 0 }]} />
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 8 }}>
+              <button onClick={() => { setShowStatusForm(false); setEditStatus(null); }} style={{ border: "1px solid #E2E8F0", borderRadius: 6, padding: "8px 18px", background: "#fff", fontSize: 13, cursor: "pointer" }}>キャンセル</button>
+              <button onClick={saveStatus} style={S.addBtn}>{editStatus ? "保存する" : "追加する"}</button>
             </div>
           </div>
         </div>
