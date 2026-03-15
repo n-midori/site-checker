@@ -534,8 +534,11 @@ export default function App() {
                         <a href={buildLocationLink(issue)} target="_blank" rel="noopener noreferrer"
                           style={{ ...S.linkBtn, padding: "3px 8px", fontSize: 11 }} onClick={e => e.stopPropagation()}>📍</a>
                       </Tooltip>
-                      <button style={S.iconBtn("#DC2626")} title="削除"
-                        onClick={e => { e.stopPropagation(); setShowDelete(issue.id); }}>🗑</button>
+                      <span style={{ color: "#DC2626", fontSize: 11, fontWeight: 600, cursor: "pointer", textDecoration: "none" }}
+                        onClick={e => { e.stopPropagation(); setShowDelete(issue.id); }}
+                        onMouseEnter={e => (e.currentTarget.style.textDecoration = "underline")}
+                        onMouseLeave={e => (e.currentTarget.style.textDecoration = "none")}
+                      >削除</span>
                     </div>
                   </td>
                 </tr>
@@ -553,7 +556,7 @@ export default function App() {
     <div style={S.app}>
       <header style={S.header}>
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-          <div style={S.logo}><div style={S.logoMark}>✓</div>SiteCheck</div>
+          <div style={{ ...S.logo, cursor: "pointer" }} onClick={() => { setView("list"); setSelected(null); }}><div style={S.logoMark}>✓</div>SiteCheck</div>
           <nav style={S.nav}>
             <button style={S.navBtn(view === "list" || view === "detail")} onClick={() => setView("list")}>修正依頼</button>
             <button style={S.navBtn(view === "members")} onClick={() => setView("members")}>メンバー管理</button>
