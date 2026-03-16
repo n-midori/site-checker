@@ -126,6 +126,8 @@ export default function App() {
   // インライン編集用
   const [editingStatusId, setEditingStatusId] = useState<number | null>(null);
   const [editingAssigneeId, setEditingAssigneeId] = useState<number | null>(null);
+  const [editingDetailId, setEditingDetailId] = useState<number | null>(null);
+  const [editingDetailText, setEditingDetailText] = useState("");
 
   const [newForm, setNewForm] = useState({
     url: "", title: "", detail: "", priority: "中", assignee: "", page: "", reporter: "",
@@ -221,6 +223,13 @@ export default function App() {
     await supabase.from("issues").update({ assignee, updated_at }).eq("id", id);
     setIssues(prev => prev.map(i => i.id === id ? { ...i, assignee, updated_at } : i));
     setSelected(s => s?.id === id ? { ...s, assignee, updated_at } : s);
+  };
+
+  const updateDetail = async (id: number, detail: string) => {
+    const updated_at = new Date().toISOString().slice(0, 10);
+    await supabase.from("issues").update({ detail, updated_at }).eq("id", id);
+    setIssues(prev => prev.map(i => i.id === id ? { ...i, detail, updated_at } : i));
+    setSelected(s => s?.id === id ? { ...s, detail, updated_at } : s);
   };
 
   const addComment = async (id: number) => {
@@ -643,21 +652,85 @@ export default function App() {
             ) : filtered.map(issue => {
               const isDone = doneStatusNames.includes(issue.status);
               const goDetail = () => { setSelected(issue); setView("detail"); };
+              const rowGroupId = `issue-row-${issue.id}`;
               return (
                 <React.Fragment key={issue.id}>
-                <tr style={{ cursor: "pointer", opacity: isDone ? 0.5 : 1 }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "#F8FAFC")}
-                  onMouseLeave={e => (e.currentTarget.style.background = "")}
+                <tr data-row-group={rowGroupId} style={{ cursor: "pointer", opacity: isDone ? 0.5 : 1 }}
+                  onMouseEnter={() => { document.querySelectorAll(`[data-row-group="${rowGroupId}"]`).forEach(el => (el as HTMLElement).style.background = "#F8FAFC"); }}
+                  onMouseLeave={() => { document.querySelectorAll(`[data-row-group="${rowGroupId}"]`).forEach(el => (el as HTMLElement).style.background = ""); }}
                 >
                   <td style={{ ...S.td, color: "#94A3B8", fontWeight: 700, fontSize: 12 }} onClick={goDetail}>#{issue.id}</td>
                   <td style={S.td} onClick={goDetail}><PriorityBadge label={issue.priority} /></td>
-                  <td style={S.td} onClick={goDetail}>
-                    <div style={{ fontWeight: 600, marginBottom: 2 }}>{issue.title}</div>
-                    {issue.url && <div style={{ fontSize: 11, color: "#94A3B8", fontFamily: "monospace" }}>{issue.url.replace("https://", "")}</div>}
+                  <td style={S.td}>
+                    <div style={{ fontWeight: 600, marginBottom: 2, cursor: "pointer" }} onClick={goDetail}>{issue.title}</div>
+                    {issue.url && <div style={{ fontSize: 11, color: "#94A3B8", fontFamily: "monospace", cursor: "pointer" }} onClick={goDetail}>{issue.url.replace("https://", "")}</div>}
+                    {(issue.screenshot_url || issue.detail) && (
+                      <div style={{ display: "flex", gap: 10, marginTop: 6, alignItems: "flex-start" }}>
+                        {issue.screenshot_url && (
+                          <div style={{ flexShrink: 0, width: 120, height: 80, borderRadius: 4, overflow: "hidden", background: "#0F172A", position: "relative", cursor: "pointer" }}
+                            onClick={goDetail}>
+                            <img src={issue.screenshot_url} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                            <div style={{ position: "absolute", left: `${issue.x}%`, top: `${issue.y}%`, transform: "translate(-50%,-50%)", width: 16, height: 16, borderRadius: "50%", background: "rgba(239,68,68,0.2)", border: "2px solid #EF4444", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 7, fontWeight: 800 }}>{issue.id}</div>
+                          </div>
+                        )}
+                        {editingDetailId === issue.id ? (
+                          <textarea
+                            autoFocus
+                            value={editingDetailText}
+                            onChange={e => setEditingDetailText(e.target.value)}
+                            onBlur={() => { updateDetail(issue.id, editingDetailText); setEditingDetailId(null); }}
+                            onKeyDown={e => { if (e.key === "Escape") { setEditingDetailId(null); } }}
+                            onClick={e => e.stopPropagation()}
+                            style={{ flex: 1, minWidth: 0, fontSize: 12, color: "#374151", lineHeight: 1.6, border: "1px solid #93C5FD", borderRadius: 4, padding: "4px 6px", resize: "vertical", minHeight: 48, outline: "none", background: "#EFF6FF" }}
+                          />
+                        ) : (
+                          <div style={{ flex: 1, minWidth: 0, cursor: "pointer", borderRadius: 4, padding: "2px 4px" }}
+                            onClick={e => { e.stopPropagation(); setEditingDetailId(issue.id); setEditingDetailText(issue.detail || ""); }}
+                            onMouseEnter={e => (e.currentTarget.style.background = "#F1F5F9")}
+                            onMouseLeave={e => (e.currentTarget.style.background = "")}
+                          >
+                            {issue.detail ? (
+                              <div style={{ fontSize: 12, color: "#374151", lineHeight: 1.6, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical" as const, overflow: "hidden" }}>{issue.detail}</div>
+                            ) : (
+                              <div style={{ fontSize: 12, color: "#CBD5E1", fontStyle: "italic" }}>詳細を追加...</div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {!issue.screenshot_url && !issue.detail && (
+                      <div style={{ marginTop: 4 }}>
+                        {editingDetailId === issue.id ? (
+                          <textarea
+                            autoFocus
+                            value={editingDetailText}
+                            onChange={e => setEditingDetailText(e.target.value)}
+                            onBlur={() => { updateDetail(issue.id, editingDetailText); setEditingDetailId(null); }}
+                            onKeyDown={e => { if (e.key === "Escape") { setEditingDetailId(null); } }}
+                            onClick={e => e.stopPropagation()}
+                            style={{ width: "100%", fontSize: 12, color: "#374151", lineHeight: 1.6, border: "1px solid #93C5FD", borderRadius: 4, padding: "4px 6px", resize: "vertical", minHeight: 48, outline: "none", background: "#EFF6FF" }}
+                          />
+                        ) : (
+                          <div style={{ cursor: "pointer", borderRadius: 4, padding: "2px 4px" }}
+                            onClick={e => { e.stopPropagation(); setEditingDetailId(issue.id); setEditingDetailText(""); }}
+                            onMouseEnter={e => (e.currentTarget.style.background = "#F1F5F9")}
+                            onMouseLeave={e => (e.currentTarget.style.background = "")}
+                          >
+                            <div style={{ fontSize: 12, color: "#CBD5E1", fontStyle: "italic" }}>詳細を追加...</div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </td>
                   <td style={{ ...S.td, fontSize: 12, color: "#64748B" }} onClick={goDetail}>{issue.page}</td>
-                  <td style={{ ...S.td, position: "relative" }} onClick={e => { e.stopPropagation(); setEditingStatusId(editingStatusId === issue.id ? null : issue.id); setEditingAssigneeId(null); }}>
-                    <StatusBadge label={issue.status} statuses={statuses} />
+                  <td style={{ ...S.td, position: "relative", cursor: "pointer" }} onClick={e => { e.stopPropagation(); setEditingStatusId(editingStatusId === issue.id ? null : issue.id); setEditingAssigneeId(null); }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "#F1F5F9")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "")}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <StatusBadge label={issue.status} statuses={statuses} />
+                      <span style={{ fontSize: 9, color: "#94A3B8", lineHeight: 1 }}>▼</span>
+                    </div>
                     {editingStatusId === issue.id && (
                       <div style={{ position: "absolute", top: "100%", left: 0, zIndex: 60, background: "#fff", border: "1px solid #E2E8F0", borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", padding: 4, minWidth: 160 }}
                         onClick={e => e.stopPropagation()}>
@@ -678,8 +751,14 @@ export default function App() {
                       </div>
                     )}
                   </td>
-                  <td style={{ ...S.td, fontSize: 12, position: "relative" }} onClick={e => { e.stopPropagation(); setEditingAssigneeId(editingAssigneeId === issue.id ? null : issue.id); setEditingStatusId(null); }}>
-                    {issue.assignee || <span style={{ color: "#94A3B8" }}>未割当</span>}
+                  <td style={{ ...S.td, fontSize: 12, position: "relative", cursor: "pointer" }} onClick={e => { e.stopPropagation(); setEditingAssigneeId(editingAssigneeId === issue.id ? null : issue.id); setEditingStatusId(null); }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "#F1F5F9")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "")}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      {issue.assignee || <span style={{ color: "#94A3B8" }}>未割当</span>}
+                      <span style={{ fontSize: 9, color: "#94A3B8", lineHeight: 1 }}>▼</span>
+                    </div>
                     {editingAssigneeId === issue.id && (
                       <div style={{ position: "absolute", top: "100%", left: 0, zIndex: 60, background: "#fff", border: "1px solid #E2E8F0", borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", padding: 4, minWidth: 140 }}
                         onClick={e => e.stopPropagation()}>
@@ -716,29 +795,6 @@ export default function App() {
                     </div>
                   </td>
                 </tr>
-                {(issue.screenshot_url || issue.detail) && (
-                  <tr style={{ opacity: isDone ? 0.5 : 1 }}
-                    onMouseEnter={e => (e.currentTarget.style.background = "#F8FAFC")}
-                    onMouseLeave={e => (e.currentTarget.style.background = "")}
-                  >
-                    <td colSpan={9} style={{ ...S.td, paddingTop: 0, borderBottom: "2px solid #E2E8F0" }}>
-                      <div style={{ display: "flex", gap: 16, paddingLeft: 0 }}>
-                        {issue.screenshot_url && (
-                          <div style={{ flexShrink: 0, width: 180, height: 120, borderRadius: 6, overflow: "hidden", background: "#0F172A", position: "relative", cursor: "pointer" }}
-                            onClick={() => { setSelected(issue); setView("detail"); }}>
-                            <img src={issue.screenshot_url} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-                            <div style={{ position: "absolute", left: `${issue.x}%`, top: `${issue.y}%`, transform: "translate(-50%,-50%)", width: 20, height: 20, borderRadius: "50%", background: "rgba(239,68,68,0.2)", border: "2px solid #EF4444", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 8, fontWeight: 800 }}>{issue.id}</div>
-                          </div>
-                        )}
-                        {issue.detail && (
-                          <div style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => { setSelected(issue); setView("detail"); }}>
-                            <div style={{ fontSize: 12, color: "#374151", lineHeight: 1.6, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical" as const, overflow: "hidden" }}>{issue.detail}</div>
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                )}
                 </React.Fragment>
               );
             })}
