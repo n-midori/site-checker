@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 
 // ── 型定義 ────────────────────────────────────────────────────
@@ -123,6 +123,10 @@ export default function App() {
   const [editStatus, setEditStatus] = useState<Status | null>(null);
   const [statusForm, setStatusForm] = useState({ name: "", color: "#64748B" });
 
+  // インライン編集用
+  const [editingStatusId, setEditingStatusId] = useState<number | null>(null);
+  const [editingAssigneeId, setEditingAssigneeId] = useState<number | null>(null);
+
   const [newForm, setNewForm] = useState({
     url: "", title: "", detail: "", priority: "中", assignee: "", page: "", reporter: "",
   });
@@ -157,6 +161,14 @@ export default function App() {
   useEffect(() => {
     Promise.all([fetchMembers(), fetchIssues(), fetchStatuses()]).then(() => setLoading(false));
   }, [fetchMembers, fetchIssues, fetchStatuses]);
+
+  // ドロップダウン外クリックで閉じる
+  useEffect(() => {
+    if (editingStatusId === null && editingAssigneeId === null) return;
+    const handleClick = () => { setEditingStatusId(null); setEditingAssigneeId(null); };
+    const timer = setTimeout(() => document.addEventListener("click", handleClick), 0);
+    return () => { clearTimeout(timer); document.removeEventListener("click", handleClick); };
+  }, [editingStatusId, editingAssigneeId]);
 
   // ── 派生データ ──────────────────────────────────────────────
   const statusNames = useMemo(() => statuses.map(s => s.name), [statuses]);
@@ -630,22 +642,64 @@ export default function App() {
               <tr><td colSpan={9} style={{ ...S.td, textAlign: "center", color: "#94A3B8", padding: 40 }}>条件に一致する修正依頼がありません</td></tr>
             ) : filtered.map(issue => {
               const isDone = doneStatusNames.includes(issue.status);
+              const goDetail = () => { setSelected(issue); setView("detail"); };
               return (
-                <tr key={issue.id} style={{ cursor: "pointer", opacity: isDone ? 0.5 : 1 }}
+                <React.Fragment key={issue.id}>
+                <tr style={{ cursor: "pointer", opacity: isDone ? 0.5 : 1 }}
                   onMouseEnter={e => (e.currentTarget.style.background = "#F8FAFC")}
                   onMouseLeave={e => (e.currentTarget.style.background = "")}
                 >
-                  <td style={{ ...S.td, color: "#94A3B8", fontWeight: 700, fontSize: 12 }} onClick={() => { setSelected(issue); setView("detail"); }}>#{issue.id}</td>
-                  <td style={S.td} onClick={() => { setSelected(issue); setView("detail"); }}><PriorityBadge label={issue.priority} /></td>
-                  <td style={S.td} onClick={() => { setSelected(issue); setView("detail"); }}>
+                  <td style={{ ...S.td, color: "#94A3B8", fontWeight: 700, fontSize: 12 }} onClick={goDetail}>#{issue.id}</td>
+                  <td style={S.td} onClick={goDetail}><PriorityBadge label={issue.priority} /></td>
+                  <td style={S.td} onClick={goDetail}>
                     <div style={{ fontWeight: 600, marginBottom: 2 }}>{issue.title}</div>
                     {issue.url && <div style={{ fontSize: 11, color: "#94A3B8", fontFamily: "monospace" }}>{issue.url.replace("https://", "")}</div>}
                   </td>
-                  <td style={{ ...S.td, fontSize: 12, color: "#64748B" }} onClick={() => { setSelected(issue); setView("detail"); }}>{issue.page}</td>
-                  <td style={S.td} onClick={() => { setSelected(issue); setView("detail"); }}><StatusBadge label={issue.status} statuses={statuses} /></td>
-                  <td style={{ ...S.td, fontSize: 12 }} onClick={() => { setSelected(issue); setView("detail"); }}>{issue.assignee || ""}</td>
-                  <td style={{ ...S.td, fontSize: 12, color: "#64748B" }} onClick={() => { setSelected(issue); setView("detail"); }}>{issue.reporter || ""}</td>
-                  <td style={{ ...S.td, fontSize: 12, color: "#94A3B8" }} onClick={() => { setSelected(issue); setView("detail"); }}>{issue.updated_at}</td>
+                  <td style={{ ...S.td, fontSize: 12, color: "#64748B" }} onClick={goDetail}>{issue.page}</td>
+                  <td style={{ ...S.td, position: "relative" }} onClick={e => { e.stopPropagation(); setEditingStatusId(editingStatusId === issue.id ? null : issue.id); setEditingAssigneeId(null); }}>
+                    <StatusBadge label={issue.status} statuses={statuses} />
+                    {editingStatusId === issue.id && (
+                      <div style={{ position: "absolute", top: "100%", left: 0, zIndex: 60, background: "#fff", border: "1px solid #E2E8F0", borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", padding: 4, minWidth: 160 }}
+                        onClick={e => e.stopPropagation()}>
+                        {statuses.map(st => {
+                          const c = statusColors(st.color);
+                          const active = issue.status === st.name;
+                          return (
+                            <div key={st.id} onClick={() => { updateStatus(issue.id, st.name); setEditingStatusId(null); }}
+                              style={{ padding: "6px 10px", borderRadius: 5, cursor: "pointer", fontSize: 12, fontWeight: active ? 700 : 400, color: active ? c.text : "#374151", background: active ? c.bg : "transparent", display: "flex", alignItems: "center", gap: 6 }}
+                              onMouseEnter={e => { if (!active) e.currentTarget.style.background = "#F8FAFC"; }}
+                              onMouseLeave={e => { if (!active) e.currentTarget.style.background = "transparent"; }}
+                            >
+                              <span style={{ fontSize: 8, color: st.color }}>●</span>
+                              {active && "✓ "}{st.name}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </td>
+                  <td style={{ ...S.td, fontSize: 12, position: "relative" }} onClick={e => { e.stopPropagation(); setEditingAssigneeId(editingAssigneeId === issue.id ? null : issue.id); setEditingStatusId(null); }}>
+                    {issue.assignee || <span style={{ color: "#94A3B8" }}>未割当</span>}
+                    {editingAssigneeId === issue.id && (
+                      <div style={{ position: "absolute", top: "100%", left: 0, zIndex: 60, background: "#fff", border: "1px solid #E2E8F0", borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", padding: 4, minWidth: 140 }}
+                        onClick={e => e.stopPropagation()}>
+                        <div onClick={() => { updateAssignee(issue.id, ""); setEditingAssigneeId(null); }}
+                          style={{ padding: "6px 10px", borderRadius: 5, cursor: "pointer", fontSize: 12, color: !issue.assignee ? "#2563EB" : "#94A3B8", fontWeight: !issue.assignee ? 700 : 400 }}
+                          onMouseEnter={e => (e.currentTarget.style.background = "#F8FAFC")}
+                          onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                        >未割当</div>
+                        {memberNames.map(n => (
+                          <div key={n} onClick={() => { updateAssignee(issue.id, n); setEditingAssigneeId(null); }}
+                            style={{ padding: "6px 10px", borderRadius: 5, cursor: "pointer", fontSize: 12, fontWeight: issue.assignee === n ? 700 : 400, color: issue.assignee === n ? "#2563EB" : "#374151" }}
+                            onMouseEnter={e => (e.currentTarget.style.background = "#F8FAFC")}
+                            onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                          >{issue.assignee === n && "✓ "}{n}</div>
+                        ))}
+                      </div>
+                    )}
+                  </td>
+                  <td style={{ ...S.td, fontSize: 12, color: "#64748B" }} onClick={goDetail}>{issue.reporter || ""}</td>
+                  <td style={{ ...S.td, fontSize: 12, color: "#94A3B8" }} onClick={goDetail}>{issue.updated_at}</td>
                   <td style={S.td}>
                     <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
                       {issue.url && (
@@ -662,6 +716,30 @@ export default function App() {
                     </div>
                   </td>
                 </tr>
+                {(issue.screenshot_url || issue.detail) && (
+                  <tr style={{ opacity: isDone ? 0.5 : 1 }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "#F8FAFC")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "")}
+                  >
+                    <td colSpan={9} style={{ ...S.td, paddingTop: 0, borderBottom: "2px solid #E2E8F0" }}>
+                      <div style={{ display: "flex", gap: 16, paddingLeft: 0 }}>
+                        {issue.screenshot_url && (
+                          <div style={{ flexShrink: 0, width: 180, height: 120, borderRadius: 6, overflow: "hidden", background: "#0F172A", position: "relative", cursor: "pointer" }}
+                            onClick={() => { setSelected(issue); setView("detail"); }}>
+                            <img src={issue.screenshot_url} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                            <div style={{ position: "absolute", left: `${issue.x}%`, top: `${issue.y}%`, transform: "translate(-50%,-50%)", width: 20, height: 20, borderRadius: "50%", background: "rgba(239,68,68,0.2)", border: "2px solid #EF4444", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 8, fontWeight: 800 }}>{issue.id}</div>
+                          </div>
+                        )}
+                        {issue.detail && (
+                          <div style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => { setSelected(issue); setView("detail"); }}>
+                            <div style={{ fontSize: 12, color: "#374151", lineHeight: 1.6, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical" as const, overflow: "hidden" }}>{issue.detail}</div>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                </React.Fragment>
               );
             })}
           </tbody>
