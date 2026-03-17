@@ -131,6 +131,8 @@ export default function App() {
   // 詳細画面の詳細説明インライン編集用
   const [editingDetailViewDetail, setEditingDetailViewDetail] = useState(false);
   const [editingDetailViewText, setEditingDetailViewText] = useState("");
+  // リンクコピー表示用
+  const [linkCopied, setLinkCopied] = useState(false);
   // ドロップダウン座標用
   const [dropdownPos, setDropdownPos] = useState<{ top?: number; bottom?: number; left: number } | null>(null);
 
@@ -181,6 +183,23 @@ export default function App() {
       }
     });
   }, [fetchMembers, fetchIssues, fetchStatuses]);
+
+  // ブラウザの戻る・進むボタンでURL変化を検知
+  useEffect(() => {
+    const onPopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const issueId = params.get("issue");
+      if (issueId) {
+        const id = parseInt(issueId, 10);
+        const found = issues.find(i => i.id === id);
+        if (found) { setSelected(found); setView("detail"); }
+      } else {
+        setSelected(null); setView("list");
+      }
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [issues]);
 
   // ドロップダウン外クリックで閉じる
   useEffect(() => {
@@ -422,7 +441,7 @@ export default function App() {
                 <td style={S.td}><StatusBadge label={st.name} statuses={statuses} /></td>
                 <td style={S.td}>
                   <div style={{ display: "flex", gap: 4 }}>
-                    <button style={S.iconBtn("#2563EB")} title="編集" onClick={() => { setEditStatus(st); setStatusForm({ name: st.name, color: st.color }); setShowStatusForm(true); }}>✏️</button>
+                    <button style={S.iconBtn("#6B7280")} title="編集" onClick={() => { setEditStatus(st); setStatusForm({ name: st.name, color: st.color }); setShowStatusForm(true); }}>✏️</button>
                     <button style={S.iconBtn("#DC2626")} title="削除" onClick={() => deleteStatus(st.id)}>🗑</button>
                   </div>
                 </td>
@@ -464,7 +483,7 @@ export default function App() {
                   </td>
                   <td style={S.td}>
                     <div style={{ display: "flex", gap: 4 }}>
-                      <button style={S.iconBtn("#2563EB")} title="編集" onClick={() => { setEditMember(m); setMemberForm({ name: m.name, role: m.role }); setShowMemberForm(true); }}>✏️</button>
+                      <button style={S.iconBtn("#6B7280")} title="編集" onClick={() => { setEditMember(m); setMemberForm({ name: m.name, role: m.role }); setShowMemberForm(true); }}>✏️</button>
                       <button style={S.iconBtn("#DC2626")} title="削除" onClick={() => deleteMember(m.id)}>🗑</button>
                     </div>
                   </td>
@@ -485,7 +504,7 @@ export default function App() {
 
     return (
       <div>
-        <button style={{ ...S.iconBtn(), marginBottom: 12, fontSize: 13, display: "flex", alignItems: "center", gap: 4 }} onClick={() => { setView("list"); setSelected(null); }}>
+        <button style={{ ...S.iconBtn(), marginBottom: 12, fontSize: 13, display: "flex", alignItems: "center", gap: 4 }} onClick={() => { setView("list"); setSelected(null); window.history.pushState({}, "", window.location.pathname); }}>
           ← 一覧に戻る
         </button>
         <div style={S.card}>
@@ -503,6 +522,12 @@ export default function App() {
                   <a href={locationLink} target="_blank" rel="noopener noreferrer" style={S.linkBtn}>📍 該当箇所を開く</a>
                 </Tooltip>
               )}
+              <button style={{ ...S.linkBtn, background: "#1E293B", border: "1px solid #334155", color: "#94A3B8" }} onClick={() => {
+                navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}?issue=${issue.id}`);
+                setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2000);
+              }}>
+                {linkCopied ? "✓ コピーしました" : "🔗 リンクをコピー"}
+              </button>
             </div>
           </div>
 
@@ -636,8 +661,8 @@ export default function App() {
         {[
           { label: "総件数", val: stats.total, color: "#94A3B8", onClick: resetFilters },
           { label: "未完了", val: stats.open, color: "#D97706", onClick: () => { resetFilters(); setFilterStatus("__open__"); } },
-          { label: "完了済み", val: stats.done, color: "#16A34A", onClick: () => { resetFilters(); setFilterStatus("完了"); } },
           { label: "優先度・高（未完了）", val: stats.high, color: "#DC2626", onClick: () => { resetFilters(); setFilterPriority("高"); setFilterStatus("__open__"); } },
+          { label: "完了済み", val: stats.done, color: "#16A34A", onClick: () => { resetFilters(); setFilterStatus("完了"); } },
         ].map(({ label, val, color, onClick }) => {
           const isActive =
             (label === "未完了" && filterStatus === "__open__" && filterPriority === "すべて") ||
@@ -661,20 +686,32 @@ export default function App() {
       </div>
 
       <div style={S.filterBar}>
-        <input style={{ ...S.input, width: 200 }} placeholder="🔍 タイトル・内容を検索"
-          value={searchText} onChange={e => setSearchText(e.target.value)} />
-        <select style={S.select} value={filterStatus === "__open__" ? "__open__" : filterStatus}
-          onChange={e => setFilterStatus(e.target.value)}>
-          <option value="すべて">すべて</option>
-          <option value="__open__">未完了（全ステータス）</option>
-          {statusNames.map(s => <option key={s} value={s}>{s}</option>)}
-        </select>
-        <select style={S.select} value={filterPriority} onChange={e => setFilterPriority(e.target.value)}>
-          <option>すべて</option>{PRIORITIES.map(p => <option key={p}>{p}</option>)}
-        </select>
-        <select style={S.select} value={filterAssignee} onChange={e => setFilterAssignee(e.target.value)}>
-          <option>すべて</option>{memberNames.map(m => <option key={m}>{m}</option>)}
-        </select>
+        <div>
+          <div style={{ fontSize: 10, color: "#888888", fontWeight: 600, marginBottom: 3 }}>検索</div>
+          <input style={{ ...S.input, width: 200 }} placeholder="🔍 タイトル・内容を検索"
+            value={searchText} onChange={e => setSearchText(e.target.value)} />
+        </div>
+        <div>
+          <div style={{ fontSize: 10, color: "#888888", fontWeight: 600, marginBottom: 3 }}>ステータス</div>
+          <select style={S.select} value={filterStatus === "__open__" ? "__open__" : filterStatus}
+            onChange={e => setFilterStatus(e.target.value)}>
+            <option value="すべて">すべて</option>
+            <option value="__open__">未完了（全ステータス）</option>
+            {statusNames.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+        <div>
+          <div style={{ fontSize: 10, color: "#888888", fontWeight: 600, marginBottom: 3 }}>優先度</div>
+          <select style={S.select} value={filterPriority} onChange={e => setFilterPriority(e.target.value)}>
+            <option>すべて</option>{PRIORITIES.map(p => <option key={p}>{p}</option>)}
+          </select>
+        </div>
+        <div>
+          <div style={{ fontSize: 10, color: "#888888", fontWeight: 600, marginBottom: 3 }}>担当者</div>
+          <select style={S.select} value={filterAssignee} onChange={e => setFilterAssignee(e.target.value)}>
+            <option>すべて</option>{memberNames.map(m => <option key={m}>{m}</option>)}
+          </select>
+        </div>
         <select style={{ ...S.select, maxWidth: 220 }} value={filterUrl} onChange={e => setFilterUrl(e.target.value)}>
           <option>すべて</option>
           {uniqueUrls.map(u => <option key={u} value={u}>{u.replace("https://", "")}</option>)}
@@ -697,13 +734,13 @@ export default function App() {
           <thead>
             <tr>
               {[
-                { label: "#", minWidth: 40 },
-                { label: "優先度", minWidth: 70 },
+                { label: "#", minWidth: 32 },
+                { label: "優先度", minWidth: 56 },
                 { label: "タイトル", minWidth: 200 },
                 { label: "ページ", minWidth: 160 },
                 { label: "ステータス", minWidth: 100 },
                 { label: "担当者", minWidth: 80 },
-                { label: "起票者", minWidth: 80 },
+                { label: "起票者", minWidth: 56 },
                 { label: "", minWidth: 60 },
               ].map(h => <th key={h.label} style={{ ...S.th, minWidth: h.minWidth }}>{h.label}</th>)}
             </tr>
@@ -713,7 +750,7 @@ export default function App() {
               <tr><td colSpan={8} style={{ ...S.td, textAlign: "center", color: "#888888", padding: 40 }}>条件に一致する修正依頼がありません</td></tr>
             ) : filtered.map(issue => {
               const isDone = doneStatusNames.includes(issue.status);
-              const goDetail = () => { setSelected(issue); setView("detail"); };
+              const goDetail = () => { setSelected(issue); setView("detail"); window.history.pushState({}, "", `?issue=${issue.id}`); };
               const rowGroupId = `issue-row-${issue.id}`;
               return (
                 <React.Fragment key={issue.id}>
@@ -721,8 +758,8 @@ export default function App() {
                   onMouseEnter={() => { document.querySelectorAll(`[data-row-group="${rowGroupId}"]`).forEach(el => (el as HTMLElement).style.background = "#F8FAFC"); }}
                   onMouseLeave={() => { document.querySelectorAll(`[data-row-group="${rowGroupId}"]`).forEach(el => (el as HTMLElement).style.background = ""); }}
                 >
-                  <td style={{ ...S.td, color: "#888888", fontWeight: 700, fontSize: 12 }} onClick={goDetail}>#{issue.id}</td>
-                  <td style={S.td} onClick={goDetail}><PriorityBadge label={issue.priority} /></td>
+                  <td style={{ ...S.td, color: "#888888", fontWeight: 700, fontSize: 12, padding: "12px 6px" }} onClick={goDetail}>#{issue.id}</td>
+                  <td style={{ ...S.td, padding: "12px 6px" }} onClick={goDetail}><PriorityBadge label={issue.priority} /></td>
                   <td style={S.td}>
                     <div style={{ fontWeight: 600, marginBottom: 2, cursor: "pointer" }} onClick={goDetail}>{issue.title}</div>
                     {issue.url && <div style={{ fontSize: 11, color: "#888888", fontFamily: "monospace", cursor: "pointer" }} onClick={goDetail}>{issue.url.replace("https://", "")}</div>}
