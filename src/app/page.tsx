@@ -132,7 +132,7 @@ export default function App() {
   const [editingDetailViewDetail, setEditingDetailViewDetail] = useState(false);
   const [editingDetailViewText, setEditingDetailViewText] = useState("");
   // ドロップダウン座標用
-  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null);
+  const [dropdownPos, setDropdownPos] = useState<{ top?: number; bottom?: number; left: number } | null>(null);
 
   const [newForm, setNewForm] = useState({
     url: "", title: "", detail: "", priority: "中", assignee: "", page: "", reporter: "",
@@ -334,34 +334,34 @@ export default function App() {
 
   // ── スタイル ─────────────────────────────────────────────────
   const S = {
-    app: { fontFamily: "'IBM Plex Sans JP','Noto Sans JP',sans-serif", background: "#F1F5F9", minHeight: "100vh", color: "#1E293B" },
+    app: { fontFamily: "'IBM Plex Sans JP','Noto Sans JP',sans-serif", background: "#F1F5F9", minHeight: "100vh", color: "#333333" },
     header: { background: "#0F172A", color: "#F8FAFC", padding: "0 24px", height: 52, display: "flex" as const, alignItems: "center" as const, justifyContent: "space-between" as const, position: "sticky" as const, top: 0, zIndex: 50 },
     logo: { display: "flex", alignItems: "center", gap: 10, fontSize: 15, fontWeight: 700 },
     logoMark: { width: 28, height: 28, background: "#3B82F6", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800 },
     nav: { display: "flex", gap: 2 },
     navBtn: (active: boolean) => ({
-      background: active ? "#1E293B" : "none", color: active ? "#F8FAFC" : "#94A3B8",
+      background: active ? "#1E293B" : "none", color: active ? "#F8FAFC" : "#B0B8C4",
       border: "none", borderRadius: 6, padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer",
     }),
     main: { maxWidth: 1200, margin: "0 auto", padding: "20px 24px" },
     statsRow: { display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 20 },
     statCard: (c: string) => ({ background: "#fff", borderRadius: 8, padding: "14px 18px", borderLeft: `3px solid ${c}`, boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }),
     statNum: { fontSize: 28, fontWeight: 800, lineHeight: 1, marginBottom: 2 },
-    statLabel: { fontSize: 11, color: "#94A3B8", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" as const },
+    statLabel: { fontSize: 11, color: "#666666", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" as const },
     filterBar: { background: "#fff", borderRadius: 8, padding: "14px 18px", marginBottom: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.06)", display: "flex", flexWrap: "wrap" as const, gap: 10, alignItems: "center" },
-    select: { border: "1px solid #E2E8F0", borderRadius: 6, padding: "5px 10px", fontSize: 12, color: "#374151", background: "#fff", cursor: "pointer", outline: "none" },
-    toggleBtn: (a: boolean) => ({ border: `1px solid ${a ? "#2563EB" : "#E2E8F0"}`, borderRadius: 6, padding: "5px 12px", fontSize: 12, fontWeight: 600, background: a ? "#EFF6FF" : "#fff", color: a ? "#2563EB" : "#374151", cursor: "pointer" }),
-    input: { border: "1px solid #E2E8F0", borderRadius: 6, padding: "5px 10px", fontSize: 12, outline: "none", color: "#374151" },
+    select: { border: "1px solid #E2E8F0", borderRadius: 6, padding: "5px 10px", fontSize: 12, color: "#333333", background: "#fff", cursor: "pointer", outline: "none" },
+    toggleBtn: (a: boolean) => ({ border: `1px solid ${a ? "#2563EB" : "#E2E8F0"}`, borderRadius: 6, padding: "5px 12px", fontSize: 12, fontWeight: 600, background: a ? "#EFF6FF" : "#fff", color: a ? "#2563EB" : "#333333", cursor: "pointer" }),
+    input: { border: "1px solid #E2E8F0", borderRadius: 6, padding: "5px 10px", fontSize: 12, outline: "none", color: "#333333" },
     table: { width: "100%", borderCollapse: "collapse" as const },
-    th: { padding: "10px 14px", textAlign: "left" as const, fontSize: 11, fontWeight: 700, color: "#64748B", letterSpacing: "0.06em", textTransform: "uppercase" as const, borderBottom: "2px solid #E2E8F0", background: "#F8FAFC" },
+    th: { padding: "10px 14px", textAlign: "left" as const, fontSize: 11, fontWeight: 700, color: "#555555", letterSpacing: "0.06em", textTransform: "uppercase" as const, borderBottom: "2px solid #E2E8F0", background: "#F8FAFC" },
     td: { padding: "12px 14px", borderBottom: "1px solid #F1F5F9", fontSize: 13, verticalAlign: "middle" as const },
     addBtn: { display: "flex", alignItems: "center", gap: 6, background: "#2563EB", color: "#fff", border: "none", borderRadius: 7, padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer" },
-    iconBtn: (color = "#64748B") => ({ background: "none", border: "none", cursor: "pointer", color, fontSize: 15, padding: "4px 6px", borderRadius: 4, lineHeight: 1 }),
-    sectionLabel: { fontSize: 11, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.06em", textTransform: "uppercase" as const, marginBottom: 8 },
+    iconBtn: (color = "#555555") => ({ background: "none", border: "none", cursor: "pointer", color, fontSize: 15, padding: "4px 6px", borderRadius: 4, lineHeight: 1 }),
+    sectionLabel: { fontSize: 11, fontWeight: 700, color: "#666666", letterSpacing: "0.06em", textTransform: "uppercase" as const, marginBottom: 8 },
     card: { background: "#fff", borderRadius: 8, boxShadow: "0 1px 3px rgba(0,0,0,0.06)", overflow: "visible" as const },
     modal: { position: "fixed" as const, inset: 0, background: "rgba(15,23,42,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 },
     modalBox: { background: "#fff", borderRadius: 10, padding: 28, width: 520, boxShadow: "0 20px 60px rgba(0,0,0,0.3)", maxHeight: "90vh", overflowY: "auto" as const },
-    formLabel: { fontSize: 12, fontWeight: 700, color: "#374151", display: "block", marginBottom: 4 },
+    formLabel: { fontSize: 12, fontWeight: 700, color: "#333333", display: "block", marginBottom: 4 },
     formInput: { width: "100%", border: "1px solid #E2E8F0", borderRadius: 6, padding: "7px 10px", fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box" as const, marginBottom: 14 },
     linkBtn: { display: "inline-flex", alignItems: "center", gap: 4, color: "#2563EB", fontSize: 12, textDecoration: "none", background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 5, padding: "4px 10px", fontWeight: 600, cursor: "pointer" },
   };
@@ -369,7 +369,7 @@ export default function App() {
   if (loading) {
     return (
       <div style={{ ...S.app, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ textAlign: "center", color: "#64748B" }}>
+        <div style={{ textAlign: "center", color: "#555555" }}>
           <div style={{ fontSize: 24, marginBottom: 8 }}>読み込み中...</div>
         </div>
       </div>
@@ -403,7 +403,7 @@ export default function App() {
                 <td style={S.td}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <div style={{ width: 16, height: 16, borderRadius: 3, background: st.color, border: "1px solid #E2E8F0" }} />
-                    <span style={{ fontSize: 12, color: "#64748B", fontFamily: "monospace" }}>{st.color}</span>
+                    <span style={{ fontSize: 12, color: "#555555", fontFamily: "monospace" }}>{st.color}</span>
                   </div>
                 </td>
                 <td style={S.td}><StatusBadge label={st.name} statuses={statuses} /></td>
@@ -444,10 +444,10 @@ export default function App() {
                     <span style={{ fontWeight: 600 }}>{m.name}</span>
                     {m.name === currentUser && <span style={{ marginLeft: 6, fontSize: 11, background: "#EFF6FF", color: "#2563EB", borderRadius: 4, padding: "1px 6px", fontWeight: 600 }}>自分</span>}
                   </td>
-                  <td style={{ ...S.td, color: "#64748B" }}>{m.role}</td>
+                  <td style={{ ...S.td, color: "#555555" }}>{m.role}</td>
                   <td style={S.td}>
-                    <span style={{ fontWeight: 700, color: count > 0 ? "#D97706" : "#94A3B8" }}>{count}</span>
-                    <span style={{ color: "#94A3B8", fontSize: 12 }}> 件</span>
+                    <span style={{ fontWeight: 700, color: count > 0 ? "#D97706" : "#888888" }}>{count}</span>
+                    <span style={{ color: "#888888", fontSize: 12 }}> 件</span>
                   </td>
                   <td style={S.td}>
                     <div style={{ display: "flex", gap: 4 }}>
@@ -480,11 +480,11 @@ export default function App() {
             <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
               <PriorityBadge label={issue.priority} />
               <StatusBadge label={issue.status} statuses={statuses} />
-              <span style={{ fontSize: 11, color: "#64748B", alignSelf: "center" }}>#{issue.id}</span>
+              <span style={{ fontSize: 11, color: "#888888", alignSelf: "center" }}>#{issue.id}</span>
             </div>
             <div style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.4 }}>{issue.title}</div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 12, color: "#64748B" }}>{[issue.url, issue.page].filter(Boolean).join(" · ") || "URL未設定"}</span>
+              <span style={{ fontSize: 12, color: "#888888" }}>{[issue.url, issue.page].filter(Boolean).join(" · ") || "URL未設定"}</span>
               {issue.url && (
                 <Tooltip text="ブラウザ拡張がある場合、該当箇所をハイライト表示します">
                   <a href={locationLink} target="_blank" rel="noopener noreferrer" style={S.linkBtn}>📍 該当箇所を開く</a>
@@ -505,7 +505,7 @@ export default function App() {
                     </>
                   ) : (
                     <>
-                      <span style={{ color: "#334155", fontSize: 12 }}>スクリーンショット（拡張機能で取得）</span>
+                      <span style={{ color: "#888888", fontSize: 12 }}>スクリーンショット（拡張機能で取得）</span>
                       <div style={{ position: "absolute", left: `${issue.x}%`, top: `${issue.y}%`, transform: "translate(-50%,-50%)" }}>
                         <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#EF4444", border: "3px solid #fff", boxShadow: "0 0 0 3px rgba(239,68,68,0.4)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 10, fontWeight: 800 }}>{issue.id}</div>
                       </div>
@@ -522,7 +522,7 @@ export default function App() {
                     onChange={e => setEditingDetailViewText(e.target.value)}
                     onBlur={() => { updateDetail(issue.id, editingDetailViewText); setEditingDetailViewDetail(false); }}
                     onKeyDown={e => { if (e.key === "Escape") setEditingDetailViewDetail(false); }}
-                    style={{ width: "100%", fontSize: 14, lineHeight: 1.8, color: "#374151", border: "1px solid #93C5FD", borderRadius: 6, padding: "8px 10px", resize: "vertical", minHeight: 80, outline: "none", background: "#EFF6FF", fontFamily: "inherit", boxSizing: "border-box" }}
+                    style={{ width: "100%", fontSize: 14, lineHeight: 1.8, color: "#333333", border: "1px solid #93C5FD", borderRadius: 6, padding: "8px 10px", resize: "vertical", minHeight: 80, outline: "none", background: "#EFF6FF", fontFamily: "inherit", boxSizing: "border-box" }}
                   />
                 ) : (
                   <div
@@ -532,11 +532,11 @@ export default function App() {
                     onMouseLeave={e => { e.currentTarget.style.background = ""; (e.currentTarget.querySelector(".edit-hint") as HTMLElement)?.style.setProperty("opacity", "0"); }}
                   >
                     {issue.detail ? (
-                      <p style={{ fontSize: 14, lineHeight: 1.8, color: "#374151", margin: 0 }}>{issue.detail}</p>
+                      <p style={{ fontSize: 14, lineHeight: 1.8, color: "#333333", margin: 0 }}>{issue.detail}</p>
                     ) : (
-                      <p style={{ fontSize: 14, color: "#CBD5E1", fontStyle: "italic", margin: 0 }}>クリックして詳細を追加...</p>
+                      <p style={{ fontSize: 14, color: "#888888", fontStyle: "italic", margin: 0 }}>クリックして詳細を追加...</p>
                     )}
-                    <span className="edit-hint" style={{ position: "absolute", top: 6, right: 8, opacity: 0, transition: "opacity 0.15s", fontSize: 12, color: "#94A3B8", display: "flex", alignItems: "center", gap: 4 }}>
+                    <span className="edit-hint" style={{ position: "absolute", top: 6, right: 8, opacity: 0, transition: "opacity 0.15s", fontSize: 12, color: "#888888", display: "flex", alignItems: "center", gap: 4 }}>
                       ✏️ <span style={{ fontSize: 11 }}>クリックして編集</span>
                     </span>
                   </div>
@@ -548,9 +548,9 @@ export default function App() {
                   <div key={i} style={{ background: "#F8FAFC", borderRadius: 6, padding: "10px 14px", marginBottom: 8, fontSize: 13, lineHeight: 1.6 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                       <span style={{ fontWeight: 700, fontSize: 12 }}>{c.author}</span>
-                      <span style={{ fontSize: 11, color: "#94A3B8" }}>{c.date}</span>
+                      <span style={{ fontSize: 11, color: "#888888" }}>{c.date}</span>
                     </div>
-                    <div style={{ color: "#374151" }}>{c.text}</div>
+                    <div style={{ color: "#333333" }}>{c.text}</div>
                   </div>
                 ))}
                 <textarea
@@ -560,7 +560,7 @@ export default function App() {
                   onKeyDown={e => { if (e.key === "Enter" && e.metaKey) addComment(issue.id); }}
                 />
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
-                  <span style={{ fontSize: 11, color: "#94A3B8" }}>⌘+Enter で送信</span>
+                  <span style={{ fontSize: 11, color: "#888888" }}>⌘+Enter で送信</span>
                   <button onClick={() => addComment(issue.id)} style={{ ...S.addBtn, fontSize: 12, padding: "7px 14px" }}>送信</button>
                 </div>
               </div>
@@ -602,7 +602,7 @@ export default function App() {
                 ].map(([label, val]) => (
                   <div key={label}>
                     <div style={S.sectionLabel}>{label}</div>
-                    <div style={{ fontSize: 13, color: "#1E293B", fontWeight: 500 }}>{val || "—"}</div>
+                    <div style={{ fontSize: 13, color: "#333333", fontWeight: 500 }}>{val || "—"}</div>
                   </div>
                 ))}
               </div>
@@ -672,7 +672,7 @@ export default function App() {
           {isFiltered && (
             <button onClick={resetFilters} style={{
               border: "1px solid #E2E8F0", borderRadius: 6, padding: "5px 12px",
-              fontSize: 12, fontWeight: 600, background: "#F8FAFC", color: "#64748B",
+              fontSize: 12, fontWeight: 600, background: "#F8FAFC", color: "#555555",
               cursor: "pointer", display: "flex", alignItems: "center", gap: 4,
             }}>✕ 絞り込みをリセット</button>
           )}
@@ -691,14 +691,13 @@ export default function App() {
                 { label: "ステータス", minWidth: 100 },
                 { label: "担当者", minWidth: 80 },
                 { label: "起票者", minWidth: 80 },
-                { label: "更新日", minWidth: 90 },
                 { label: "", minWidth: 60 },
               ].map(h => <th key={h.label} style={{ ...S.th, minWidth: h.minWidth }}>{h.label}</th>)}
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
-              <tr><td colSpan={9} style={{ ...S.td, textAlign: "center", color: "#94A3B8", padding: 40 }}>条件に一致する修正依頼がありません</td></tr>
+              <tr><td colSpan={8} style={{ ...S.td, textAlign: "center", color: "#888888", padding: 40 }}>条件に一致する修正依頼がありません</td></tr>
             ) : filtered.map(issue => {
               const isDone = doneStatusNames.includes(issue.status);
               const goDetail = () => { setSelected(issue); setView("detail"); };
@@ -709,11 +708,11 @@ export default function App() {
                   onMouseEnter={() => { document.querySelectorAll(`[data-row-group="${rowGroupId}"]`).forEach(el => (el as HTMLElement).style.background = "#F8FAFC"); }}
                   onMouseLeave={() => { document.querySelectorAll(`[data-row-group="${rowGroupId}"]`).forEach(el => (el as HTMLElement).style.background = ""); }}
                 >
-                  <td style={{ ...S.td, color: "#94A3B8", fontWeight: 700, fontSize: 12 }} onClick={goDetail}>#{issue.id}</td>
+                  <td style={{ ...S.td, color: "#888888", fontWeight: 700, fontSize: 12 }} onClick={goDetail}>#{issue.id}</td>
                   <td style={S.td} onClick={goDetail}><PriorityBadge label={issue.priority} /></td>
                   <td style={S.td}>
                     <div style={{ fontWeight: 600, marginBottom: 2, cursor: "pointer" }} onClick={goDetail}>{issue.title}</div>
-                    {issue.url && <div style={{ fontSize: 11, color: "#94A3B8", fontFamily: "monospace", cursor: "pointer" }} onClick={goDetail}>{issue.url.replace("https://", "")}</div>}
+                    {issue.url && <div style={{ fontSize: 11, color: "#888888", fontFamily: "monospace", cursor: "pointer" }} onClick={goDetail}>{issue.url.replace("https://", "")}</div>}
                     {(issue.screenshot_url || issue.detail) && (
                       <div style={{ display: "flex", gap: 10, marginTop: 6, alignItems: "flex-start" }}>
                         {issue.screenshot_url && (
@@ -731,7 +730,7 @@ export default function App() {
                             onBlur={() => { updateDetail(issue.id, editingDetailText); setEditingDetailId(null); }}
                             onKeyDown={e => { if (e.key === "Escape") { setEditingDetailId(null); } }}
                             onClick={e => e.stopPropagation()}
-                            style={{ flex: 1, minWidth: 0, fontSize: 12, color: "#374151", lineHeight: 1.6, border: "1px solid #93C5FD", borderRadius: 4, padding: "4px 6px", resize: "vertical", minHeight: 48, outline: "none", background: "#EFF6FF" }}
+                            style={{ flex: 1, minWidth: 0, fontSize: 12, color: "#333333", lineHeight: 1.6, border: "1px solid #93C5FD", borderRadius: 4, padding: "4px 6px", resize: "vertical", minHeight: 48, outline: "none", background: "#EFF6FF" }}
                           />
                         ) : (
                           <div style={{ flex: 1, minWidth: 0, cursor: "pointer", borderRadius: 4, padding: "2px 4px", position: "relative" }}
@@ -740,11 +739,11 @@ export default function App() {
                             onMouseLeave={e => { e.currentTarget.style.background = ""; (e.currentTarget.querySelector(".edit-hint-list") as HTMLElement)?.style.setProperty("opacity", "0"); }}
                           >
                             {issue.detail ? (
-                              <div style={{ fontSize: 12, color: "#374151", lineHeight: 1.6, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical" as const, overflow: "hidden" }}>{issue.detail}</div>
+                              <div style={{ fontSize: 12, color: "#333333", lineHeight: 1.6, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical" as const, overflow: "hidden" }}>{issue.detail}</div>
                             ) : (
-                              <div style={{ fontSize: 12, color: "#CBD5E1", fontStyle: "italic" }}>詳細を追加...</div>
+                              <div style={{ fontSize: 12, color: "#888888", fontStyle: "italic" }}>詳細を追加...</div>
                             )}
-                            <span className="edit-hint-list" style={{ position: "absolute", top: 2, right: 4, opacity: 0, transition: "opacity 0.15s", fontSize: 11, color: "#94A3B8" }}>✏️</span>
+                            <span className="edit-hint-list" style={{ position: "absolute", top: 2, right: 4, opacity: 0, transition: "opacity 0.15s", fontSize: 11, color: "#888888" }}>✏️</span>
                           </div>
                         )}
                       </div>
@@ -759,7 +758,7 @@ export default function App() {
                             onBlur={() => { updateDetail(issue.id, editingDetailText); setEditingDetailId(null); }}
                             onKeyDown={e => { if (e.key === "Escape") { setEditingDetailId(null); } }}
                             onClick={e => e.stopPropagation()}
-                            style={{ width: "100%", fontSize: 12, color: "#374151", lineHeight: 1.6, border: "1px solid #93C5FD", borderRadius: 4, padding: "4px 6px", resize: "vertical", minHeight: 48, outline: "none", background: "#EFF6FF" }}
+                            style={{ width: "100%", fontSize: 12, color: "#333333", lineHeight: 1.6, border: "1px solid #93C5FD", borderRadius: 4, padding: "4px 6px", resize: "vertical", minHeight: 48, outline: "none", background: "#EFF6FF" }}
                           />
                         ) : (
                           <div style={{ cursor: "pointer", borderRadius: 4, padding: "2px 4px", position: "relative" }}
@@ -767,19 +766,24 @@ export default function App() {
                             onMouseEnter={e => { e.currentTarget.style.background = "#F1F5F9"; (e.currentTarget.querySelector(".edit-hint-list") as HTMLElement)?.style.setProperty("opacity", "1"); }}
                             onMouseLeave={e => { e.currentTarget.style.background = ""; (e.currentTarget.querySelector(".edit-hint-list") as HTMLElement)?.style.setProperty("opacity", "0"); }}
                           >
-                            <div style={{ fontSize: 12, color: "#CBD5E1", fontStyle: "italic" }}>詳細を追加...</div>
-                            <span className="edit-hint-list" style={{ position: "absolute", top: 2, right: 4, opacity: 0, transition: "opacity 0.15s", fontSize: 11, color: "#94A3B8" }}>✏️</span>
+                            <div style={{ fontSize: 12, color: "#888888", fontStyle: "italic" }}>詳細を追加...</div>
+                            <span className="edit-hint-list" style={{ position: "absolute", top: 2, right: 4, opacity: 0, transition: "opacity 0.15s", fontSize: 11, color: "#888888" }}>✏️</span>
                           </div>
                         )}
                       </div>
                     )}
                   </td>
-                  <td style={{ ...S.td, fontSize: 12, color: "#64748B" }} onClick={goDetail}>{issue.page}</td>
+                  <td style={{ ...S.td, fontSize: 12, color: "#555555" }} onClick={goDetail}>{issue.page}</td>
                   <td style={{ ...S.td, cursor: "pointer" }} onClick={e => {
                     e.stopPropagation();
                     if (editingStatusId === issue.id) { setEditingStatusId(null); setDropdownPos(null); } else {
                       const rect = e.currentTarget.getBoundingClientRect();
-                      setDropdownPos({ top: rect.bottom + 2, left: rect.left });
+                      const spaceBelow = window.innerHeight - rect.bottom;
+                      if (spaceBelow < 250) {
+                        setDropdownPos({ bottom: window.innerHeight - rect.top + 2, left: rect.left });
+                      } else {
+                        setDropdownPos({ top: rect.bottom + 2, left: rect.left });
+                      }
                       setEditingStatusId(issue.id); setEditingAssigneeId(null);
                     }
                   }}
@@ -788,17 +792,17 @@ export default function App() {
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                       <StatusBadge label={issue.status} statuses={statuses} />
-                      <span style={{ fontSize: 9, color: "#94A3B8", lineHeight: 1 }}>▼</span>
+                      <span style={{ fontSize: 9, color: "#888888", lineHeight: 1 }}>▼</span>
                     </div>
                     {editingStatusId === issue.id && dropdownPos && (
-                      <div style={{ position: "fixed", top: dropdownPos.top, left: dropdownPos.left, zIndex: 9999, background: "#fff", border: "1px solid #E2E8F0", borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", padding: 4, minWidth: 160 }}
+                      <div style={{ position: "fixed", ...(dropdownPos.top != null ? { top: dropdownPos.top } : { bottom: dropdownPos.bottom }), left: dropdownPos.left, zIndex: 9999, background: "#fff", border: "1px solid #E2E8F0", borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", padding: 4, minWidth: 160 }}
                         onClick={e => e.stopPropagation()}>
                         {statuses.map(st => {
                           const c = statusColors(st.color);
                           const active = issue.status === st.name;
                           return (
                             <div key={st.id} onClick={() => { updateStatus(issue.id, st.name); setEditingStatusId(null); setDropdownPos(null); }}
-                              style={{ padding: "6px 10px", borderRadius: 5, cursor: "pointer", fontSize: 12, fontWeight: active ? 700 : 400, color: active ? c.text : "#374151", background: active ? c.bg : "transparent", display: "flex", alignItems: "center", gap: 6 }}
+                              style={{ padding: "6px 10px", borderRadius: 5, cursor: "pointer", fontSize: 12, fontWeight: active ? 700 : 400, color: active ? c.text : "#333333", background: active ? c.bg : "transparent", display: "flex", alignItems: "center", gap: 6 }}
                               onMouseEnter={e => { if (!active) e.currentTarget.style.background = "#F8FAFC"; }}
                               onMouseLeave={e => { if (!active) e.currentTarget.style.background = "transparent"; }}
                             >
@@ -814,7 +818,12 @@ export default function App() {
                     e.stopPropagation();
                     if (editingAssigneeId === issue.id) { setEditingAssigneeId(null); setDropdownPos(null); } else {
                       const rect = e.currentTarget.getBoundingClientRect();
-                      setDropdownPos({ top: rect.bottom + 2, left: rect.left });
+                      const spaceBelow = window.innerHeight - rect.bottom;
+                      if (spaceBelow < 250) {
+                        setDropdownPos({ bottom: window.innerHeight - rect.top + 2, left: rect.left });
+                      } else {
+                        setDropdownPos({ top: rect.bottom + 2, left: rect.left });
+                      }
                       setEditingAssigneeId(issue.id); setEditingStatusId(null);
                     }
                   }}
@@ -822,20 +831,20 @@ export default function App() {
                     onMouseLeave={e => (e.currentTarget.style.background = "")}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                      {issue.assignee || <span style={{ color: "#94A3B8" }}>未割当</span>}
-                      <span style={{ fontSize: 9, color: "#94A3B8", lineHeight: 1 }}>▼</span>
+                      {issue.assignee || <span style={{ color: "#888888" }}>未割当</span>}
+                      <span style={{ fontSize: 9, color: "#888888", lineHeight: 1 }}>▼</span>
                     </div>
                     {editingAssigneeId === issue.id && dropdownPos && (
-                      <div style={{ position: "fixed", top: dropdownPos.top, left: dropdownPos.left, zIndex: 9999, background: "#fff", border: "1px solid #E2E8F0", borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", padding: 4, minWidth: 140 }}
+                      <div style={{ position: "fixed", ...(dropdownPos.top != null ? { top: dropdownPos.top } : { bottom: dropdownPos.bottom }), left: dropdownPos.left, zIndex: 9999, background: "#fff", border: "1px solid #E2E8F0", borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", padding: 4, minWidth: 140 }}
                         onClick={e => e.stopPropagation()}>
                         <div onClick={() => { updateAssignee(issue.id, ""); setEditingAssigneeId(null); setDropdownPos(null); }}
-                          style={{ padding: "6px 10px", borderRadius: 5, cursor: "pointer", fontSize: 12, color: !issue.assignee ? "#2563EB" : "#94A3B8", fontWeight: !issue.assignee ? 700 : 400 }}
+                          style={{ padding: "6px 10px", borderRadius: 5, cursor: "pointer", fontSize: 12, color: !issue.assignee ? "#2563EB" : "#888888", fontWeight: !issue.assignee ? 700 : 400 }}
                           onMouseEnter={e => (e.currentTarget.style.background = "#F8FAFC")}
                           onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                         >未割当</div>
                         {memberNames.map(n => (
                           <div key={n} onClick={() => { updateAssignee(issue.id, n); setEditingAssigneeId(null); setDropdownPos(null); }}
-                            style={{ padding: "6px 10px", borderRadius: 5, cursor: "pointer", fontSize: 12, fontWeight: issue.assignee === n ? 700 : 400, color: issue.assignee === n ? "#2563EB" : "#374151" }}
+                            style={{ padding: "6px 10px", borderRadius: 5, cursor: "pointer", fontSize: 12, fontWeight: issue.assignee === n ? 700 : 400, color: issue.assignee === n ? "#2563EB" : "#333333" }}
                             onMouseEnter={e => (e.currentTarget.style.background = "#F8FAFC")}
                             onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                           >{issue.assignee === n && "✓ "}{n}</div>
@@ -843,8 +852,7 @@ export default function App() {
                       </div>
                     )}
                   </td>
-                  <td style={{ ...S.td, fontSize: 12, color: "#64748B" }} onClick={goDetail}>{issue.reporter || ""}</td>
-                  <td style={{ ...S.td, fontSize: 12, color: "#94A3B8" }} onClick={goDetail}>{issue.updated_at}</td>
+                  <td style={{ ...S.td, fontSize: 12, color: "#555555" }} onClick={goDetail}>{issue.reporter || ""}</td>
                   <td style={S.td}>
                     <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
                       {issue.url && (
@@ -867,7 +875,7 @@ export default function App() {
           </tbody>
         </table>
       </div>
-      <div style={{ marginTop: 10, fontSize: 12, color: "#94A3B8" }}>{filtered.length} 件表示 / 全 {issues.length} 件</div>
+      <div style={{ marginTop: 10, fontSize: 12, color: "#888888" }}>{filtered.length} 件表示 / 全 {issues.length} 件</div>
     </div>
   );
 
@@ -884,7 +892,7 @@ export default function App() {
           </nav>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ fontSize: 11, color: "#64748B" }}>ログイン中：</span>
+          <span style={{ fontSize: 11, color: "#888888" }}>ログイン中：</span>
           <select style={{ ...S.select, background: "#1E293B", color: "#F8FAFC", borderColor: "#334155", fontSize: 12 }}
             value={currentUser} onChange={e => setCurrentUser(e.target.value)}>
             {memberNames.map(n => <option key={n}>{n}</option>)}
@@ -908,7 +916,7 @@ export default function App() {
         <div style={S.modal} onClick={e => e.target === e.currentTarget && setShowDelete(null)}>
           <div style={{ ...S.modalBox, width: 400 }}>
             <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 12 }}>修正依頼を削除しますか？</div>
-            <p style={{ fontSize: 13, color: "#64748B", marginBottom: 24 }}>
+            <p style={{ fontSize: 13, color: "#555555", marginBottom: 24 }}>
               「{issues.find(i => i.id === showDelete)?.title}」を削除します。この操作は取り消せません。
             </p>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
