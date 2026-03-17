@@ -166,7 +166,20 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    Promise.all([fetchMembers(), fetchIssues(), fetchStatuses()]).then(() => setLoading(false));
+    Promise.all([fetchMembers(), fetchIssues(), fetchStatuses()]).then(() => {
+      setLoading(false);
+      // URLパラメータで ?issue=ID が指定されていたら詳細画面を開く
+      const params = new URLSearchParams(window.location.search);
+      const issueId = params.get("issue");
+      if (issueId) {
+        const id = parseInt(issueId, 10);
+        setIssues(prev => {
+          const found = prev.find(i => i.id === id);
+          if (found) { setSelected(found); setView("detail"); }
+          return prev;
+        });
+      }
+    });
   }, [fetchMembers, fetchIssues, fetchStatuses]);
 
   // ドロップダウン外クリックで閉じる
