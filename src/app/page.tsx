@@ -441,8 +441,8 @@ export default function App() {
                 <td style={S.td}><StatusBadge label={st.name} statuses={statuses} /></td>
                 <td style={S.td}>
                   <div style={{ display: "flex", gap: 4 }}>
-                    <button style={S.iconBtn("#6B7280")} title="編集" onClick={() => { setEditStatus(st); setStatusForm({ name: st.name, color: st.color }); setShowStatusForm(true); }}>✏️</button>
-                    <button style={S.iconBtn("#DC2626")} title="削除" onClick={() => deleteStatus(st.id)}>🗑</button>
+                    <button style={{ ...S.iconBtn("#6B7280"), fontSize: 18, padding: "6px 8px" }} title="編集" onClick={() => { setEditStatus(st); setStatusForm({ name: st.name, color: st.color }); setShowStatusForm(true); }}>✏️</button>
+                    <button style={{ ...S.iconBtn("#DC2626"), fontSize: 18, padding: "6px 8px" }} title="削除" onClick={() => deleteStatus(st.id)}>🗑️</button>
                   </div>
                 </td>
               </tr>
@@ -483,8 +483,8 @@ export default function App() {
                   </td>
                   <td style={S.td}>
                     <div style={{ display: "flex", gap: 4 }}>
-                      <button style={S.iconBtn("#6B7280")} title="編集" onClick={() => { setEditMember(m); setMemberForm({ name: m.name, role: m.role }); setShowMemberForm(true); }}>✏️</button>
-                      <button style={S.iconBtn("#DC2626")} title="削除" onClick={() => deleteMember(m.id)}>🗑</button>
+                      <button style={{ ...S.iconBtn("#6B7280"), fontSize: 18, padding: "6px 8px" }} title="編集" onClick={() => { setEditMember(m); setMemberForm({ name: m.name, role: m.role }); setShowMemberForm(true); }}>✏️</button>
+                      <button style={{ ...S.iconBtn("#DC2626"), fontSize: 18, padding: "6px 8px" }} title="削除" onClick={() => deleteMember(m.id)}>🗑️</button>
                     </div>
                   </td>
                 </tr>
@@ -564,19 +564,17 @@ export default function App() {
                   />
                 ) : (
                   <div
-                    style={{ cursor: "pointer", borderRadius: 6, padding: "6px 8px", position: "relative" }}
+                    style={{ cursor: "pointer", borderRadius: 6, padding: "6px 8px", position: "relative", border: "1px solid transparent", transition: "border-color 0.15s" }}
                     onClick={() => { setEditingDetailViewDetail(true); setEditingDetailViewText(issue.detail || ""); }}
-                    onMouseEnter={e => { e.currentTarget.style.background = "#F1F5F9"; (e.currentTarget.querySelector(".edit-hint") as HTMLElement)?.style.setProperty("opacity", "1"); }}
-                    onMouseLeave={e => { e.currentTarget.style.background = ""; (e.currentTarget.querySelector(".edit-hint") as HTMLElement)?.style.setProperty("opacity", "0"); }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = "#93C5FD"; (e.currentTarget.querySelector(".edit-hint") as HTMLElement)?.style.setProperty("opacity", "1"); }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = "transparent"; (e.currentTarget.querySelector(".edit-hint") as HTMLElement)?.style.setProperty("opacity", "0"); }}
                   >
                     {issue.detail ? (
                       <p style={{ fontSize: 14, lineHeight: 1.8, color: "#333333", margin: 0 }}>{issue.detail}</p>
                     ) : (
                       <p style={{ fontSize: 14, color: "#888888", fontStyle: "italic", margin: 0 }}>クリックして詳細を追加...</p>
                     )}
-                    <span className="edit-hint" style={{ position: "absolute", top: 6, right: 8, opacity: 0, transition: "opacity 0.15s", fontSize: 12, color: "#888888", display: "flex", alignItems: "center", gap: 4 }}>
-                      ✏️ <span style={{ fontSize: 11 }}>クリックして編集</span>
-                    </span>
+                    <span className="edit-hint" style={{ position: "absolute", bottom: 4, right: 6, opacity: 0, transition: "opacity 0.15s", fontSize: 13, color: "#888888" }}>✏️</span>
                   </div>
                 )}
               </div>
@@ -595,10 +593,10 @@ export default function App() {
                   style={{ width: "100%", border: "1px solid #E2E8F0", borderRadius: 6, padding: "8px 10px", fontSize: 13, resize: "vertical", minHeight: 72, outline: "none", fontFamily: "inherit", boxSizing: "border-box" }}
                   placeholder="コメントを追加…" value={newComment}
                   onChange={e => setNewComment(e.target.value)}
-                  onKeyDown={e => { if (e.key === "Enter" && e.metaKey) addComment(issue.id); }}
+                  onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) addComment(issue.id); }}
                 />
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
-                  <span style={{ fontSize: 11, color: "#888888" }}>⌘+Enter で送信</span>
+                  <span style={{ fontSize: 11, color: "#888888" }}>Ctrl+Enter / ⌘+Enter で送信</span>
                   <button onClick={() => addComment(issue.id)} style={{ ...S.addBtn, fontSize: 12, padding: "7px 14px" }}>送信</button>
                 </div>
               </div>
@@ -712,10 +710,13 @@ export default function App() {
             <option>すべて</option>{memberNames.map(m => <option key={m}>{m}</option>)}
           </select>
         </div>
-        <select style={{ ...S.select, maxWidth: 220 }} value={filterUrl} onChange={e => setFilterUrl(e.target.value)}>
-          <option>すべて</option>
-          {uniqueUrls.map(u => <option key={u} value={u}>{u.replace("https://", "")}</option>)}
-        </select>
+        <div>
+          <div style={{ fontSize: 10, color: "#888888", fontWeight: 600, marginBottom: 3 }}>URL</div>
+          <select style={{ ...S.select, maxWidth: 220 }} value={filterUrl} onChange={e => setFilterUrl(e.target.value)}>
+            <option>すべて</option>
+            {uniqueUrls.map(u => <option key={u} value={u}>{u.replace("https://", "")}</option>)}
+          </select>
+        </div>
         <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
           <button style={S.toggleBtn(filterMine)} onClick={() => setFilterMine(v => !v)}>👤 自分の担当</button>
           <button style={S.toggleBtn(sortPriority)} onClick={() => setSortPriority(v => !v)}>↑ 優先度順</button>
