@@ -128,6 +128,11 @@ export default function App() {
   const [editingAssigneeId, setEditingAssigneeId] = useState<number | null>(null);
   const [editingDetailId, setEditingDetailId] = useState<number | null>(null);
   const [editingDetailText, setEditingDetailText] = useState("");
+  // 詳細画面の詳細説明インライン編集用
+  const [editingDetailViewDetail, setEditingDetailViewDetail] = useState(false);
+  const [editingDetailViewText, setEditingDetailViewText] = useState("");
+  // ドロップダウン座標用
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null);
 
   const [newForm, setNewForm] = useState({
     url: "", title: "", detail: "", priority: "中", assignee: "", page: "", reporter: "",
@@ -167,9 +172,17 @@ export default function App() {
   // ドロップダウン外クリックで閉じる
   useEffect(() => {
     if (editingStatusId === null && editingAssigneeId === null) return;
-    const handleClick = () => { setEditingStatusId(null); setEditingAssigneeId(null); };
+    const handleClick = () => { setEditingStatusId(null); setEditingAssigneeId(null); setDropdownPos(null); };
     const timer = setTimeout(() => document.addEventListener("click", handleClick), 0);
     return () => { clearTimeout(timer); document.removeEventListener("click", handleClick); };
+  }, [editingStatusId, editingAssigneeId]);
+
+  // スクロール時にドロップダウンを閉じる
+  useEffect(() => {
+    if (editingStatusId === null && editingAssigneeId === null) return;
+    const handleScroll = () => { setEditingStatusId(null); setEditingAssigneeId(null); setDropdownPos(null); };
+    window.addEventListener("scroll", handleScroll, true);
+    return () => window.removeEventListener("scroll", handleScroll, true);
   }, [editingStatusId, editingAssigneeId]);
 
   // ── 派生データ ──────────────────────────────────────────────
@@ -345,7 +358,7 @@ export default function App() {
     addBtn: { display: "flex", alignItems: "center", gap: 6, background: "#2563EB", color: "#fff", border: "none", borderRadius: 7, padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer" },
     iconBtn: (color = "#64748B") => ({ background: "none", border: "none", cursor: "pointer", color, fontSize: 15, padding: "4px 6px", borderRadius: 4, lineHeight: 1 }),
     sectionLabel: { fontSize: 11, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.06em", textTransform: "uppercase" as const, marginBottom: 8 },
-    card: { background: "#fff", borderRadius: 8, boxShadow: "0 1px 3px rgba(0,0,0,0.06)", overflow: "hidden" as const },
+    card: { background: "#fff", borderRadius: 8, boxShadow: "0 1px 3px rgba(0,0,0,0.06)", overflow: "visible" as const },
     modal: { position: "fixed" as const, inset: 0, background: "rgba(15,23,42,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 },
     modalBox: { background: "#fff", borderRadius: 10, padding: 28, width: 520, boxShadow: "0 20px 60px rgba(0,0,0,0.3)", maxHeight: "90vh", overflowY: "auto" as const },
     formLabel: { fontSize: 12, fontWeight: 700, color: "#374151", display: "block", marginBottom: 4 },
@@ -502,7 +515,32 @@ export default function App() {
               </div>
               <div style={{ marginBottom: 20 }}>
                 <div style={S.sectionLabel}>詳細説明</div>
-                <p style={{ fontSize: 14, lineHeight: 1.8, color: "#374151", margin: 0 }}>{issue.detail}</p>
+                {editingDetailViewDetail ? (
+                  <textarea
+                    autoFocus
+                    value={editingDetailViewText}
+                    onChange={e => setEditingDetailViewText(e.target.value)}
+                    onBlur={() => { updateDetail(issue.id, editingDetailViewText); setEditingDetailViewDetail(false); }}
+                    onKeyDown={e => { if (e.key === "Escape") setEditingDetailViewDetail(false); }}
+                    style={{ width: "100%", fontSize: 14, lineHeight: 1.8, color: "#374151", border: "1px solid #93C5FD", borderRadius: 6, padding: "8px 10px", resize: "vertical", minHeight: 80, outline: "none", background: "#EFF6FF", fontFamily: "inherit", boxSizing: "border-box" }}
+                  />
+                ) : (
+                  <div
+                    style={{ cursor: "pointer", borderRadius: 6, padding: "6px 8px", position: "relative" }}
+                    onClick={() => { setEditingDetailViewDetail(true); setEditingDetailViewText(issue.detail || ""); }}
+                    onMouseEnter={e => { e.currentTarget.style.background = "#F1F5F9"; (e.currentTarget.querySelector(".edit-hint") as HTMLElement)?.style.setProperty("opacity", "1"); }}
+                    onMouseLeave={e => { e.currentTarget.style.background = ""; (e.currentTarget.querySelector(".edit-hint") as HTMLElement)?.style.setProperty("opacity", "0"); }}
+                  >
+                    {issue.detail ? (
+                      <p style={{ fontSize: 14, lineHeight: 1.8, color: "#374151", margin: 0 }}>{issue.detail}</p>
+                    ) : (
+                      <p style={{ fontSize: 14, color: "#CBD5E1", fontStyle: "italic", margin: 0 }}>クリックして詳細を追加...</p>
+                    )}
+                    <span className="edit-hint" style={{ position: "absolute", top: 6, right: 8, opacity: 0, transition: "opacity 0.15s", fontSize: 12, color: "#94A3B8", display: "flex", alignItems: "center", gap: 4 }}>
+                      ✏️ <span style={{ fontSize: 11 }}>クリックして編集</span>
+                    </span>
+                  </div>
+                )}
               </div>
               <div>
                 <div style={S.sectionLabel}>コメント ({issue.comments.length})</div>
@@ -641,10 +679,22 @@ export default function App() {
         </div>
       </div>
 
-      <div style={S.card}>
-        <table style={S.table}>
+      <div style={{ ...S.card, overflowX: "auto" }}>
+        <table style={{ ...S.table, tableLayout: "auto" as const }}>
           <thead>
-            <tr>{["#", "優先度", "タイトル", "ページ", "ステータス", "担当者", "起票者", "更新日", ""].map(h => <th key={h} style={S.th}>{h}</th>)}</tr>
+            <tr>
+              {[
+                { label: "#", minWidth: 40 },
+                { label: "優先度", minWidth: 70 },
+                { label: "タイトル", minWidth: 200 },
+                { label: "ページ", minWidth: 160 },
+                { label: "ステータス", minWidth: 100 },
+                { label: "担当者", minWidth: 80 },
+                { label: "起票者", minWidth: 80 },
+                { label: "更新日", minWidth: 90 },
+                { label: "", minWidth: 60 },
+              ].map(h => <th key={h.label} style={{ ...S.th, minWidth: h.minWidth }}>{h.label}</th>)}
+            </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
@@ -684,16 +734,17 @@ export default function App() {
                             style={{ flex: 1, minWidth: 0, fontSize: 12, color: "#374151", lineHeight: 1.6, border: "1px solid #93C5FD", borderRadius: 4, padding: "4px 6px", resize: "vertical", minHeight: 48, outline: "none", background: "#EFF6FF" }}
                           />
                         ) : (
-                          <div style={{ flex: 1, minWidth: 0, cursor: "pointer", borderRadius: 4, padding: "2px 4px" }}
+                          <div style={{ flex: 1, minWidth: 0, cursor: "pointer", borderRadius: 4, padding: "2px 4px", position: "relative" }}
                             onClick={e => { e.stopPropagation(); setEditingDetailId(issue.id); setEditingDetailText(issue.detail || ""); }}
-                            onMouseEnter={e => (e.currentTarget.style.background = "#F1F5F9")}
-                            onMouseLeave={e => (e.currentTarget.style.background = "")}
+                            onMouseEnter={e => { e.currentTarget.style.background = "#F1F5F9"; (e.currentTarget.querySelector(".edit-hint-list") as HTMLElement)?.style.setProperty("opacity", "1"); }}
+                            onMouseLeave={e => { e.currentTarget.style.background = ""; (e.currentTarget.querySelector(".edit-hint-list") as HTMLElement)?.style.setProperty("opacity", "0"); }}
                           >
                             {issue.detail ? (
                               <div style={{ fontSize: 12, color: "#374151", lineHeight: 1.6, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical" as const, overflow: "hidden" }}>{issue.detail}</div>
                             ) : (
                               <div style={{ fontSize: 12, color: "#CBD5E1", fontStyle: "italic" }}>詳細を追加...</div>
                             )}
+                            <span className="edit-hint-list" style={{ position: "absolute", top: 2, right: 4, opacity: 0, transition: "opacity 0.15s", fontSize: 11, color: "#94A3B8" }}>✏️</span>
                           </div>
                         )}
                       </div>
@@ -711,19 +762,27 @@ export default function App() {
                             style={{ width: "100%", fontSize: 12, color: "#374151", lineHeight: 1.6, border: "1px solid #93C5FD", borderRadius: 4, padding: "4px 6px", resize: "vertical", minHeight: 48, outline: "none", background: "#EFF6FF" }}
                           />
                         ) : (
-                          <div style={{ cursor: "pointer", borderRadius: 4, padding: "2px 4px" }}
+                          <div style={{ cursor: "pointer", borderRadius: 4, padding: "2px 4px", position: "relative" }}
                             onClick={e => { e.stopPropagation(); setEditingDetailId(issue.id); setEditingDetailText(""); }}
-                            onMouseEnter={e => (e.currentTarget.style.background = "#F1F5F9")}
-                            onMouseLeave={e => (e.currentTarget.style.background = "")}
+                            onMouseEnter={e => { e.currentTarget.style.background = "#F1F5F9"; (e.currentTarget.querySelector(".edit-hint-list") as HTMLElement)?.style.setProperty("opacity", "1"); }}
+                            onMouseLeave={e => { e.currentTarget.style.background = ""; (e.currentTarget.querySelector(".edit-hint-list") as HTMLElement)?.style.setProperty("opacity", "0"); }}
                           >
                             <div style={{ fontSize: 12, color: "#CBD5E1", fontStyle: "italic" }}>詳細を追加...</div>
+                            <span className="edit-hint-list" style={{ position: "absolute", top: 2, right: 4, opacity: 0, transition: "opacity 0.15s", fontSize: 11, color: "#94A3B8" }}>✏️</span>
                           </div>
                         )}
                       </div>
                     )}
                   </td>
                   <td style={{ ...S.td, fontSize: 12, color: "#64748B" }} onClick={goDetail}>{issue.page}</td>
-                  <td style={{ ...S.td, position: "relative", cursor: "pointer" }} onClick={e => { e.stopPropagation(); setEditingStatusId(editingStatusId === issue.id ? null : issue.id); setEditingAssigneeId(null); }}
+                  <td style={{ ...S.td, cursor: "pointer" }} onClick={e => {
+                    e.stopPropagation();
+                    if (editingStatusId === issue.id) { setEditingStatusId(null); setDropdownPos(null); } else {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setDropdownPos({ top: rect.bottom + 2, left: rect.left });
+                      setEditingStatusId(issue.id); setEditingAssigneeId(null);
+                    }
+                  }}
                     onMouseEnter={e => (e.currentTarget.style.background = "#F1F5F9")}
                     onMouseLeave={e => (e.currentTarget.style.background = "")}
                   >
@@ -731,14 +790,14 @@ export default function App() {
                       <StatusBadge label={issue.status} statuses={statuses} />
                       <span style={{ fontSize: 9, color: "#94A3B8", lineHeight: 1 }}>▼</span>
                     </div>
-                    {editingStatusId === issue.id && (
-                      <div style={{ position: "absolute", top: "100%", left: 0, zIndex: 60, background: "#fff", border: "1px solid #E2E8F0", borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", padding: 4, minWidth: 160 }}
+                    {editingStatusId === issue.id && dropdownPos && (
+                      <div style={{ position: "fixed", top: dropdownPos.top, left: dropdownPos.left, zIndex: 9999, background: "#fff", border: "1px solid #E2E8F0", borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", padding: 4, minWidth: 160 }}
                         onClick={e => e.stopPropagation()}>
                         {statuses.map(st => {
                           const c = statusColors(st.color);
                           const active = issue.status === st.name;
                           return (
-                            <div key={st.id} onClick={() => { updateStatus(issue.id, st.name); setEditingStatusId(null); }}
+                            <div key={st.id} onClick={() => { updateStatus(issue.id, st.name); setEditingStatusId(null); setDropdownPos(null); }}
                               style={{ padding: "6px 10px", borderRadius: 5, cursor: "pointer", fontSize: 12, fontWeight: active ? 700 : 400, color: active ? c.text : "#374151", background: active ? c.bg : "transparent", display: "flex", alignItems: "center", gap: 6 }}
                               onMouseEnter={e => { if (!active) e.currentTarget.style.background = "#F8FAFC"; }}
                               onMouseLeave={e => { if (!active) e.currentTarget.style.background = "transparent"; }}
@@ -751,7 +810,14 @@ export default function App() {
                       </div>
                     )}
                   </td>
-                  <td style={{ ...S.td, fontSize: 12, position: "relative", cursor: "pointer" }} onClick={e => { e.stopPropagation(); setEditingAssigneeId(editingAssigneeId === issue.id ? null : issue.id); setEditingStatusId(null); }}
+                  <td style={{ ...S.td, fontSize: 12, cursor: "pointer" }} onClick={e => {
+                    e.stopPropagation();
+                    if (editingAssigneeId === issue.id) { setEditingAssigneeId(null); setDropdownPos(null); } else {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setDropdownPos({ top: rect.bottom + 2, left: rect.left });
+                      setEditingAssigneeId(issue.id); setEditingStatusId(null);
+                    }
+                  }}
                     onMouseEnter={e => (e.currentTarget.style.background = "#F1F5F9")}
                     onMouseLeave={e => (e.currentTarget.style.background = "")}
                   >
@@ -759,16 +825,16 @@ export default function App() {
                       {issue.assignee || <span style={{ color: "#94A3B8" }}>未割当</span>}
                       <span style={{ fontSize: 9, color: "#94A3B8", lineHeight: 1 }}>▼</span>
                     </div>
-                    {editingAssigneeId === issue.id && (
-                      <div style={{ position: "absolute", top: "100%", left: 0, zIndex: 60, background: "#fff", border: "1px solid #E2E8F0", borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", padding: 4, minWidth: 140 }}
+                    {editingAssigneeId === issue.id && dropdownPos && (
+                      <div style={{ position: "fixed", top: dropdownPos.top, left: dropdownPos.left, zIndex: 9999, background: "#fff", border: "1px solid #E2E8F0", borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", padding: 4, minWidth: 140 }}
                         onClick={e => e.stopPropagation()}>
-                        <div onClick={() => { updateAssignee(issue.id, ""); setEditingAssigneeId(null); }}
+                        <div onClick={() => { updateAssignee(issue.id, ""); setEditingAssigneeId(null); setDropdownPos(null); }}
                           style={{ padding: "6px 10px", borderRadius: 5, cursor: "pointer", fontSize: 12, color: !issue.assignee ? "#2563EB" : "#94A3B8", fontWeight: !issue.assignee ? 700 : 400 }}
                           onMouseEnter={e => (e.currentTarget.style.background = "#F8FAFC")}
                           onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                         >未割当</div>
                         {memberNames.map(n => (
-                          <div key={n} onClick={() => { updateAssignee(issue.id, n); setEditingAssigneeId(null); }}
+                          <div key={n} onClick={() => { updateAssignee(issue.id, n); setEditingAssigneeId(null); setDropdownPos(null); }}
                             style={{ padding: "6px 10px", borderRadius: 5, cursor: "pointer", fontSize: 12, fontWeight: issue.assignee === n ? 700 : 400, color: issue.assignee === n ? "#2563EB" : "#374151" }}
                             onMouseEnter={e => (e.currentTarget.style.background = "#F8FAFC")}
                             onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
